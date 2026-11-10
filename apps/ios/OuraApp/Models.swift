@@ -416,6 +416,18 @@ struct DatedVital: Identifiable {
     var id: String { date }
 }
 
+/// US customary conversions at the UI boundary. Summary and profile files use SI.
+enum ImperialUnits {
+    static func fahrenheit(_ celsius: Double) -> Double { fahrenheitDelta(celsius) + 32 }
+    static func fahrenheitDelta(_ celsius: Double) -> Double { celsius * 1.8 }
+    static func miles(_ meters: Double) -> Double { meters / 1_609.344 }
+    static func feet(_ meters: Double) -> Double { meters / 0.3048 }
+    static func inches(_ centimeters: Double) -> Double { centimeters / 2.54 }
+    static func centimeters(_ inches: Double) -> Double { inches * 2.54 }
+    static func pounds(_ kilograms: Double) -> Double { kilograms / 0.45359237 }
+    static func kilograms(_ pounds: Double) -> Double { pounds * 0.45359237 }
+}
+
 enum VitalKind: String, Identifiable, CaseIterable {
     case hrv, heartRate, temp, oxygen
     var id: String { rawValue }
@@ -431,7 +443,7 @@ enum VitalKind: String, Identifiable, CaseIterable {
         switch self {
         case .hrv: return "ms"
         case .heartRate: return "bpm"
-        case .temp: return "°c"
+        case .temp: return "°F"
         case .oxygen: return "%"
         }
     }
@@ -450,7 +462,10 @@ enum VitalKind: String, Identifiable, CaseIterable {
         switch self {
         case .hrv: return s.nightlySeries(\.hrv_ms)
         case .heartRate: return s.nightlySeries(\.rhr)
-        case .temp: return s.nightlySeries(\.skin_temp)
+        case .temp:
+            return s.nightlySeries(\.skin_temp).map {
+                DatedVital(date: $0.date, value: ImperialUnits.fahrenheit($0.value))
+            }
         case .oxygen: return s.nightlySeries(\.spo2_mean)
         }
     }

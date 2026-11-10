@@ -321,6 +321,7 @@ struct VitalTrendView: View {
                             VitalTrendChart(points: points, start: window.start, end: window.end,
                                             baseline: kind.baseline(in: s),
                                             accent: accent, decimals: kind.decimals)
+                                .obsCard(padding: 14)
                             let values = points.map(\.value)
                             let avg = values.reduce(0, +) / Double(values.count)
                             VStack(spacing: 10) {

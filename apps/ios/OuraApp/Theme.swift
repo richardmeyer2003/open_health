@@ -1,10 +1,6 @@
 import SwiftUI
 import UIKit
 
-// thomas.md Quiet Ink: warm paper, serif titles, sans UI, mono numbers.
-// Color is semantic, not decorative: gray when nothing is going on, green when
-// something is genuinely good, orange/red when there is a problem.
-
 enum Obs {
     private static func adaptive(light: UInt32, dark: UInt32) -> Color {
         Color(uiColor: UIColor { trait in
@@ -17,19 +13,20 @@ enum Obs {
         })
     }
 
-    // Paper / ink — same values as thomas.md.
-    static let paper = adaptive(light: 0xfbfaf6, dark: 0x131110)
-    static let ink = adaptive(light: 0x26231e, dark: 0xefebe2)
-    static let ink2 = adaptive(light: 0x57534b, dark: 0xcfc9bf)
-    static let muted = adaptive(light: 0x6e695f, dark: 0xa8a195)
-    static let link = adaptive(light: 0x2e2b26, dark: 0xe3ddd2)
-    static let rule = adaptive(light: 0xe7e3da, dark: 0x2c2925)
+    static let paper = adaptive(light: 0xf4f7ff, dark: 0x101727)
+    static let ink = adaptive(light: 0x101e36, dark: 0xf0f5ff)
+    static let ink2 = adaptive(light: 0x344662, dark: 0xc1cee4)
+    static let muted = adaptive(light: 0x4b5e78, dark: 0xa5b6d0)
+    static let rule = adaptive(light: 0xc7d4e8, dark: 0x34445e)
+    static let accent = adaptive(light: 0x2557ac, dark: 0x91b8ff)
 
-    // Diagrams sit in the same ink family. Status uses the investing-post green/orange.
-    static let chart = adaptive(light: 0x6e695f, dark: 0xa8a195)
-    static let good = adaptive(light: 0x1baf7a, dark: 0x2ec48c)
-    static let bad = adaptive(light: 0xeb6834, dark: 0xe07a4a)
-    static let alert = adaptive(light: 0xc4472c, dark: 0xe06a4f)
+    static let chart = adaptive(light: 0x426992, dark: 0xa6c5eb)
+    static let good = adaptive(light: 0x087152, dark: 0x53d9a4)
+    static let bad = adaptive(light: 0x9e471d, dark: 0xffa476)
+    static let alert = adaptive(light: 0xaa3038, dark: 0xff8d98)
+
+    private static let canvasBlue = adaptive(light: 0xcbdcff, dark: 0x233b6a)
+    private static let canvasAqua = adaptive(light: 0xd4f1f0, dark: 0x1a3e4e)
 
     // Back-compat names. `teal` is the quiet chart color; `yellow` is a problem.
     static var teal: Color { chart }
@@ -40,7 +37,16 @@ enum Obs {
     static var baseLow: Color { paper }
     static var trace: Color { rule }
 
-    static var canvas: some View { paper.ignoresSafeArea() }
+    static var canvas: some View {
+        ZStack {
+            paper
+            RadialGradient(colors: [canvasBlue, paper.opacity(0)], center: .topTrailing,
+                           startRadius: 0, endRadius: 520)
+            RadialGradient(colors: [canvasAqua, paper.opacity(0)], center: .bottomLeading,
+                           startRadius: 0, endRadius: 420)
+        }
+        .ignoresSafeArea()
+    }
 
     // Sleep stages keep distinct hues (deep / light / REM / wake). Other charts
     // stay gray unless a value is actually good or a problem.
@@ -70,8 +76,8 @@ enum Obs {
         }
     }
 
-    static func serif(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .serif)
+    static func heading(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .semibold, design: .rounded)
     }
     static func mono(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .monospaced)
@@ -100,7 +106,6 @@ struct ObsTag: View {
     }
 }
 
-/// Hairline between home sections — the thomas.md rule, with air on both sides.
 struct ObsRule: View {
     var body: some View {
         Rectangle().fill(Obs.rule).frame(height: 1)
@@ -110,21 +115,54 @@ struct ObsRule: View {
 
 struct ObsCard: ViewModifier {
     var padding: CGFloat = 18
-    var radius: CGFloat = 10
+    var radius: CGFloat = 22
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
     func body(content: Content) -> some View {
-        content
+        let shape = RoundedRectangle(cornerRadius: radius)
+        return content
             .padding(padding)
-            .background(Obs.paper, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(Obs.rule, lineWidth: 1)
-            )
+            .background {
+                if reduceTransparency { shape.fill(Obs.paper) }
+                else { shape.fill(.regularMaterial) }
+            }
+            .overlay { shape.strokeBorder(Obs.rule.opacity(0.65), lineWidth: 1).allowsHitTesting(false) }
     }
 }
 
 extension View {
-    func obsCard(padding: CGFloat = 18, radius: CGFloat = 10) -> some View {
+    func obsCard(padding: CGFloat = 18, radius: CGFloat = 22) -> some View {
         modifier(ObsCard(padding: padding, radius: radius))
+    }
+
+    @ViewBuilder
+    func glassButton(prominent: Bool = false) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *) {
+            if prominent { buttonStyle(.glassProminent) }
+            else { buttonStyle(.glass) }
+        } else {
+            if prominent { buttonStyle(.borderedProminent) }
+            else { buttonStyle(.bordered) }
+        }
+        #else
+        if prominent { buttonStyle(.borderedProminent) }
+        else { buttonStyle(.bordered) }
+        #endif
+    }
+
+    @ViewBuilder
+    func glassToolbar() -> some View {
+        let shape = RoundedRectangle(cornerRadius: 24)
+        #if compiler(>=6.2)
+        if #available(iOS 26, *) {
+            glassEffect(.regular, in: shape)
+        } else {
+            background(.regularMaterial, in: shape)
+        }
+        #else
+        background(.regularMaterial, in: shape)
+        #endif
     }
 }
 

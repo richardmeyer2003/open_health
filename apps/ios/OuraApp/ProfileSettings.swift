@@ -4,14 +4,43 @@ import HealthKit
 private struct EditableProfile {
     var sex: String
     var age: Double
-    var heightCm: Double
+    private var originalHeightCm: Double
+    var heightFeet: Double
+    var heightInches: Double
     var weightKg: Double
     var ringSize: Double
+
+    private static func splitHeight(_ centimeters: Double) -> (feet: Double, inches: Double) {
+        let totalInches = (ImperialUnits.inches(centimeters) * 10).rounded() / 10
+        return (floor(totalInches / 12), totalInches.truncatingRemainder(dividingBy: 12))
+    }
+
+    var heightCm: Double {
+        let original = Self.splitHeight(originalHeightCm)
+        if heightFeet == original.feet && heightInches == original.inches {
+            return originalHeightCm
+        }
+        return ImperialUnits.centimeters(heightFeet * 12 + heightInches)
+    }
+
+    mutating func importHeight(_ centimeters: Double) {
+        originalHeightCm = centimeters
+        (heightFeet, heightInches) = Self.splitHeight(centimeters)
+    }
+
+    var weightPounds: Double {
+        get { ImperialUnits.pounds(weightKg) }
+        set { weightKg = ImperialUnits.kilograms(newValue) }
+    }
 
     init(_ profile: Profile?) {
         sex = profile?.sex ?? "M"
         age = profile?.age ?? 30
-        heightCm = (profile?.height_m ?? 1.78) * 100
+        let centimeters = (profile?.height_m ?? 1.78) * 100
+        originalHeightCm = centimeters
+        let height = Self.splitHeight(centimeters)
+        heightFeet = height.feet
+        heightInches = height.inches
         weightKg = profile?.weight_kg ?? 75
         ringSize = profile?.ring_size ?? 10
     }
@@ -116,10 +145,21 @@ struct ProfileSettingsView: View {
                     }
                     TextField("Age", value: $profile.age, format: .number.precision(.fractionLength(0...1)))
                         .keyboardType(.decimalPad)
-                    TextField("Height (cm)", value: $profile.heightCm, format: .number.precision(.fractionLength(0...1)))
-                        .keyboardType(.decimalPad)
-                    TextField("Weight (kg)", value: $profile.weightKg, format: .number.precision(.fractionLength(0...1)))
-                        .keyboardType(.decimalPad)
+                    LabeledContent("Height (ft)") {
+                        TextField("Height in feet", value: $profile.heightFeet, format: .number.precision(.fractionLength(0)))
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Height (in)") {
+                        TextField("Height in inches", value: $profile.heightInches, format: .number.precision(.fractionLength(0...1)))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Weight (lb)") {
+                        TextField("Weight in pounds", value: $profile.weightPounds, format: .number.precision(.fractionLength(0...1)))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                     TextField("Ring size", value: $profile.ringSize, format: .number.precision(.fractionLength(0...1)))
                         .keyboardType(.decimalPad)
                 } header: {
@@ -137,7 +177,7 @@ struct ProfileSettingsView: View {
                             case .success(let health):
                                 if let v = health.sex { profile.sex = v }
                                 if let v = health.age, v > 0 { profile.age = v }
-                                if let v = health.heightCm { profile.heightCm = v }
+                                if let v = health.heightCm { profile.importHeight(v) }
                                 if let v = health.weightKg { profile.weightKg = v }
                                 message = "Imported available values from Apple Health."
                             case .failure(let error): message = error.localizedDescription
@@ -176,7 +216,7 @@ struct ProfileSettingsView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Obs.canvas.ignoresSafeArea())
-            .navigationTitle("profile")
+            .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

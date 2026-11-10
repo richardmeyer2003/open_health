@@ -727,6 +727,7 @@ struct Polysomnograph: View {
         let span: [Double]
         var times: [Double]? = nil
         var timed: [Sleep.TimedSample]? = nil
+        var displayValue: (Double) -> Double = { $0 }
     }
 
     private var lanes: [Lane] {
@@ -741,28 +742,28 @@ struct Polysomnograph: View {
         if let st = night.hypnogram, st.count > 1 { out.append(Lane(label: "Hypnogram", unit: "", signal: nil, stages: night.analysisStages)) }
         func sig(_ label: String, _ unit: String, _ v: [Double]?, _ color: Color,
                  _ dp: Int = 0, span: [Double]? = nil, times: [Double]? = nil,
-                 rawTimed: [[Double]]? = nil) {
+                 rawTimed: [[Double]]? = nil, displayValue: @escaping (Double) -> Double = { $0 }) {
             if let timed = Sleep.timedSamples(rawTimed, startUnix: night.start_unix, endUnix: night.end_unix),
                timed.count > 1 {
-                let vals = timed.map(\.value)
                 let coverage = [timed.first!.fraction, timed.last!.fraction]
                 out.append(Lane(label: label, unit: unit,
-                                signal: SignalLane(v: vals, color: color, dp: dp,
-                                                   span: coverage, timed: timed), stages: nil))
+                                signal: SignalLane(v: timed.map(\.value), color: color, dp: dp,
+                                                   span: coverage, timed: timed, displayValue: displayValue), stages: nil))
                 return
             }
             guard let v, v.count > 1 else { return }
             let coverage = span.flatMap { $0.count == 2 ? $0 : nil } ?? [0, 1]
             out.append(Lane(label: label, unit: unit,
                             signal: SignalLane(v: v, color: color, dp: dp,
-                                               span: coverage, times: times), stages: nil))
+                                               span: coverage, times: times, displayValue: displayValue), stages: nil))
         }
         let s = night.series
         let st = night.series_t
         sig("Heart rate", "bpm", s?.hr, Obs.chart, rawTimed: st?.hr)
         sig("HRV", "ms", s?.hrv, Obs.chart, rawTimed: st?.hrv)
         sig("Blood O₂", "%", s?.spo2, Obs.chart, rawTimed: st?.spo2)
-        sig("Skin temp", "°C", s?.temp, Obs.chart, 1, span: s?.temp_span, rawTimed: st?.temp)
+        sig("Skin temp", "°F", s?.temp, Obs.chart, 1, span: s?.temp_span, rawTimed: st?.temp,
+            displayValue: ImperialUnits.fahrenheit)
         // Prefer timestamped motion (`series_t.motion`), falling back to `series.motion_time`.
         // Legacy exports lost motion timestamps; do not invent their positions.
         if let timedMotion = Sleep.timedSamples(st?.motion, startUnix: night.start_unix, endUnix: night.end_unix),
@@ -774,12 +775,10 @@ struct Polysomnograph: View {
         return out
     }
 
-    private var totalH: CGFloat {
-        lanes.reduce(0) { $0 + ($1.stages != nil ? hypH : laneH) } + axisH
-    }
-
     var body: some View {
         let win = nightWindow(night)
+        let lanes = self.lanes
+        let totalH = lanes.reduce(0) { $0 + ($1.stages != nil ? hypH : laneH) } + axisH
         GeometryReader { geo in
             let plotW = geo.size.width - gutterW
             ZStack(alignment: .topLeading) {
@@ -839,7 +838,10 @@ struct Polysomnograph: View {
             return stageName(code)
         }
         guard let s = lane.signal else { return "" }
-        let fmt = { (x: Double) in s.dp > 0 ? String(format: "%.\(s.dp)f", x) : String(Int(x.rounded())) }
+        let fmt = { (x: Double) in
+            let value = s.displayValue(x)
+            return s.dp > 0 ? String(format: "%.\(s.dp)f", value) : String(Int(value.rounded()))
+        }
         if let f = cursorF {
             if let timed = s.timed {
                 guard let val = Sleep.sampleAt(fraction: f, in: timed, durationSeconds: night.durationS) else { return "–" }
@@ -1149,7 +1151,7 @@ struct IllnessCard: View {
         "AverageHrv": "Heart rate variability", "TemperatureDeviation": "Temperature change",
     ]
     private static let units = [
-        "AverageBreath": "br/min", "LowestHeartRate": "bpm", "AverageHrv": "ms", "TemperatureDeviation": "°C",
+        "AverageBreath": "br/min", "LowestHeartRate": "bpm", "AverageHrv": "ms", "TemperatureDeviation": "°F",
     ]
     private static let order = ["AverageBreath", "LowestHeartRate", "AverageHrv", "TemperatureDeviation"]
     private var tint: Color {
@@ -1262,8 +1264,8 @@ private struct BiomarkerRow: View {
     }
     private func formatted(_ value: Double) -> String {
         guard value.isFinite else { return "–" }
-        return unit == "°C"
-            ? value.formatted(.number.precision(.fractionLength(1)))
+        return biomarker.type == "TemperatureDeviation"
+            ? ImperialUnits.fahrenheitDelta(value).formatted(.number.precision(.fractionLength(1)))
             : value.formatted(.number.precision(.fractionLength(0...1)))
     }
     var body: some View {
@@ -1429,8 +1431,9 @@ struct DayReportView: View {
                     if let analysis { refreshButton(analysis) }
                     exportMenu
                 }
-                .padding(.leading, 12).padding(.trailing, 14).padding(.vertical, 10)
-                .overlay(alignment: .bottom) { Rectangle().fill(Obs.trace.opacity(0.3)).frame(height: 0.5) }
+                .padding(.horizontal, 8).padding(.vertical, 6)
+                .glassToolbar()
+                .padding(.horizontal, 12).padding(.vertical, 6)
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 26) {
@@ -1612,6 +1615,7 @@ struct SleepReport: View {
                 Rule("Sleep stages & signals")
                 stageLegend
                 Polysomnograph(night: n)
+                    .obsCard(padding: 12)
 
                 Rule("Sleep stages")
                 StageBar(n: n)
@@ -1637,6 +1641,7 @@ struct SleepReport: View {
                 if hasAnySeries(n) {
                     Rule("overnight signals")
                     Polysomnograph(night: n)
+                        .obsCard(padding: 12)
                 }
                 Text("Sleep analysis is not available for this night yet.")
                     .font(Obs.mono(12)).foregroundStyle(Obs.ink2).fixedSize(horizontal: false, vertical: true)
@@ -1841,11 +1846,14 @@ struct ActivityReport: View {
             Readout(value: steps.value, caption: steps.unit)
             Readout(value: st.map { "\(Int($0.active_kcal ?? 0))" } ?? "–", caption: "active kcal")
             Readout(value: st.map { "\(Int($0.total_kcal ?? 0))" } ?? "–", caption: "total kcal")
-            if let d = st?.distance_m { Readout(value: String(format: "%.1f", d / 1000), caption: "distance · km") }
+            if let d = st?.distance_m {
+                Readout(value: ImperialUnits.miles(d).formatted(.number.precision(.fractionLength(2))), caption: "distance · mi")
+            }
         }
 
         Rule("movement across the day")
         MetProfile(timeline: s.wakingActivityTimeline(for: day))
+            .obsCard(padding: 14)
 
         let bucketMin = prof.isEmpty ? 15.0 : 24.0 * 60.0 / Double(prof.count)
         let activeMin = Double(prof.filter { $0 >= 3 }.count) * bucketMin

@@ -189,7 +189,7 @@ struct RawDataView: View {
             .frame(maxWidth: 520)
             .frame(maxWidth: .infinity)
         }
-        .background(Obs.paper)
+        .background(Obs.canvas)
         .navigationTitle(filter.isEmpty ? "Raw data" : filter)
         .navigationBarTitleDisplayMode(.inline)
         .task { reload() }

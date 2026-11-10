@@ -3,6 +3,16 @@ import SQLite3
 @testable import OuraApp
 
 final class StabilityTests: XCTestCase {
+    func testImperialTemperatureTrendUsesAbsoluteValuesAndLeavesSummaryInCelsius() throws {
+        let night = NightRow(ymd: "2026-09-26", skin_temp: 35)
+        let summary = Summary(nights: [night])
+        let reading = try XCTUnwrap(VitalKind.temp.series(in: summary).first)
+        XCTAssertEqual(VitalKind.temp.unit, "°F")
+        XCTAssertEqual(reading.value, 95, accuracy: 0.0001)
+        XCTAssertEqual(summary.nights.first?.skin_temp, 35)
+        XCTAssertEqual(ImperialUnits.fahrenheitDelta(-0.5), -0.9, accuracy: 0.0001)
+    }
+
     func testSummaryCachePreservesAnalysisIdentity() throws {
         var summary = Summary()
         summary.analysis_digest = "10:20:2:15"

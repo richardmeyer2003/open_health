@@ -236,7 +236,7 @@ struct SyncView: View {
                 .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
-            .background(Obs.paper)
+            .background(Obs.canvas)
             .navigationTitle("Your ring")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -273,7 +273,7 @@ struct SyncView: View {
                 Text("Erases the ring's pairing key, its Bluetooth bonds, any events it hasn't sent yet, and your stored body profile. Sync first if you want those events. This cannot be undone — but the ring stays yours: pair it again right here afterwards.")
             }
         }
-        .tint(Obs.ink)
+        .tint(Obs.accent)
         // Sync belongs to RingSync and continues when this panel is dismissed.
         .sheet(isPresented: Binding(get: { diagnosticFile != nil }, set: { if !$0 { diagnosticFile = nil } })) {
             if let diagnosticFile { DiagnosticsShare(url: diagnosticFile) }
@@ -289,7 +289,7 @@ struct SyncView: View {
 
     private var header: some View {
         Text("Pair your ring")
-            .font(Obs.serif(28))
+            .font(Obs.heading(28))
             .foregroundStyle(Obs.ink)
     }
 
@@ -399,8 +399,7 @@ struct SyncView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(Obs.rule.opacity(0.3), in: RoundedRectangle(cornerRadius: 16))
+            .obsCard(padding: 16)
         }
     }
 
@@ -411,11 +410,9 @@ struct SyncView: View {
                 Button { ring.pause() } label: {
                     Label("Pause sync", systemImage: "pause")
                         .font(.body.weight(.medium))
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .foregroundStyle(Obs.ink)
-                        .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(Obs.rule))
+                        .frame(maxWidth: .infinity, minHeight: 38)
                 }
-                .buttonStyle(.plain)
+                .glassButton()
             } else {
                 Button {
                     keyFocused = false
@@ -428,11 +425,9 @@ struct SyncView: View {
                         Image(systemName: "arrow.right")
                     }
                     .font(.body.weight(.semibold))
-                    .frame(maxWidth: .infinity, minHeight: 54)
-                    .foregroundStyle(validKey ? Obs.paper : Obs.muted)
-                    .background(validKey ? Obs.ink : Obs.rule, in: RoundedRectangle(cornerRadius: 14))
+                    .frame(maxWidth: .infinity, minHeight: 38)
                 }
-                .buttonStyle(.plain)
+                .glassButton(prominent: true)
                 .disabled(!validKey)
                 Text("Your first sync may take a few minutes.")
                     .font(.footnote).foregroundStyle(Obs.ink2)
@@ -494,7 +489,7 @@ struct SyncView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .background(Obs.rule.opacity(0.3), in: RoundedRectangle(cornerRadius: 16))
+            .obsCard(padding: 0)
 
             VStack(spacing: 0) {
                 SupportRow(icon: "trash", title: "Reset local sync data",
@@ -686,7 +681,7 @@ private struct TechnicalReportsView: View {
             .padding(.horizontal, 24).padding(.vertical, 20)
             .frame(maxWidth: .infinity)
         }
-        .background(Obs.paper)
+        .background(Obs.canvas)
         .navigationTitle("Technical reports")
         .navigationBarTitleDisplayMode(.inline)
         .task { if clockReport == nil { clockReport = await Task.detached { ClockReport.text() }.value } }
@@ -759,17 +754,14 @@ private struct SyncIndicatorButton: View {
 
     var body: some View {
         Button(action: action) {
-            ZStack {
-                Circle()
-                    .stroke(Obs.rule, lineWidth: 0.8)
-                Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(ring.busy ? Obs.ink : (ring.wasRecentlySynced ? Obs.good : Obs.ink2))
-                    .rotationEffect(.degrees(rotation))
-            }
-            .frame(width: 31, height: 31)
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(ring.busy ? Obs.accent : (ring.wasRecentlySynced ? Obs.good : Obs.ink2))
+                .rotationEffect(.degrees(rotation))
         }
-        .buttonStyle(.plain)
+        .glassButton()
+        .buttonBorderShape(.circle)
+        .controlSize(.large)
         .accessibilityLabel(ring.busy ? "Ring sync in progress" : "Ring sync and diagnostics")
         .accessibilityHint("Opens sync status, logs, and manual controls")
         .onAppear(perform: updateAnimation)
@@ -1040,19 +1032,22 @@ struct RootView: View {
     @ViewBuilder private func content(_ s: Summary) -> some View {
         let latestTemp = s.nights.first { $0.skin_temp != nil }
         let latestOxygen = s.nights.first { $0.spo2_mean != nil }
-        let recentTemperatures = Array(s.nights.compactMap(\.skin_temp).prefix(14).reversed())
+        let recentTemperatures = s.nights.compactMap(\.skin_temp).prefix(14).reversed().map(ImperialUnits.fahrenheit)
         let recentOxygen = Array(s.nights.compactMap(\.spo2_mean).prefix(14).reversed())
         let latestHR = s.vitals.hr
         ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text("Open Oura").font(Obs.serif(22)).foregroundStyle(Obs.ink)
-                        Text("beta").font(Obs.mono(9, .medium)).tracking(1.2).foregroundStyle(Obs.muted)
+                    HStack(spacing: 10) {
+                        Text("Open Oura").font(Obs.heading(28)).foregroundStyle(Obs.ink)
                         Spacer()
                         Button { showProfile = true } label: {
                             Image(systemName: "person.crop.circle")
-                                .font(.system(size: 17)).foregroundStyle(Obs.ink2)
+                                .font(.system(size: 17, weight: .medium)).foregroundStyle(Obs.ink2)
                         }
+                        .glassButton()
+                        .buttonBorderShape(.circle)
+                        .controlSize(.large)
+                        .accessibilityLabel("Profile")
                         SyncIndicatorButton(ring: ring) { showSync = true }
                     }
 
@@ -1091,7 +1086,7 @@ struct RootView: View {
                         // vitals
                         ObsRule()
                         ObsTag("vitals", icon: "waveform.path.ecg")
-                        HStack(alignment: .top, spacing: 24) {
+                        HStack(alignment: .top, spacing: 16) {
                             VitalCell(tag: "nightly hrv", value: f(s.vitals.hrv.latest), unit: "ms",
                                       delta: s.vitals.hrv.delta_pct, series: s.vitals.hrv.series,
                                       baseline: s.vitals.hrv.baseline,
@@ -1105,10 +1100,11 @@ struct RootView: View {
                                           ?? "nightly minimum",
                                       action: { vital = .heartRate })
                         }
-                        HStack(alignment: .top, spacing: 24) {
+                        .obsCard(padding: 12)
+                        HStack(alignment: .top, spacing: 16) {
                             VitalCell(tag: "skin temp",
-                                      value: latestTemp?.skin_temp.map { String(format: "%.1f", $0) } ?? "–",
-                                      unit: "°c",
+                                      value: latestTemp?.skin_temp.map { String(format: "%.1f", ImperialUnits.fahrenheit($0)) } ?? "–",
+                                      unit: VitalKind.temp.unit,
                                       series: recentTemperatures,
                                       detail: latestTemp.map { latestLabel(date: s.wakeYmd($0)) },
                                       action: { vital = .temp })
@@ -1117,6 +1113,7 @@ struct RootView: View {
                                       detail: latestOxygen.map { latestLabel(date: s.wakeYmd($0)) },
                                       action: { vital = .oxygen })
                         }
+                        .obsCard(padding: 12)
 
                         if let debt = s.sleepDebt {
                             ObsRule()
@@ -1139,7 +1136,9 @@ struct RootView: View {
                                 if let cv = s.cardio, let va = cv.vascular_age {
                                     ObsStat(label: "vascular age", value: String(format: "%.1f yr", va))
                                     if let ca = cv.chronological_age { ObsStat(label: "vs your age", value: relAge(va - ca)) }
-                                    if let pwv = cv.pwv_ms { ObsStat(label: "pulse-wave velocity", value: String(format: "%.2f m/s", pwv)) }
+                                    if let pwv = cv.pwv_ms {
+                                        ObsStat(label: "pulse-wave velocity", value: String(format: "%.2f ft/s", ImperialUnits.feet(pwv)))
+                                    }
                                     if let seg = cv.segments { ObsStat(label: "segments analysed", value: "\(seg)") }
                                 }
                                 if let vo = s.fitness?.vo2max {
@@ -1275,5 +1274,5 @@ struct BuildStamp: View {
 @main
 struct OuraApp: App {
     init() { DiagStore.shared.bootstrap() }
-    var body: some Scene { WindowGroup { RootView() } }
+    var body: some Scene { WindowGroup { RootView().tint(Obs.accent) } }
 }

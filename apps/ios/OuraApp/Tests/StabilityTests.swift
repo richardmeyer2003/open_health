@@ -3,6 +3,23 @@ import SQLite3
 @testable import OuraApp
 
 final class StabilityTests: XCTestCase {
+    func testActivityWidgetUsesTheHomeCardsDayAndActivityMetrics() throws {
+        var summary = Summary()
+        summary.activity_profile = ["2026-11-10": [0, 2, 0], "2026-11-09": [1, 0]]
+        summary.activity_daily = [
+            "2026-11-10": DailyStat(active_kcal: 353.8, total_kcal: 2_100, steps: 2_800),
+            "2026-11-09": DailyStat(active_kcal: 200, steps: 1_000),
+        ]
+
+        let snapshot = try XCTUnwrap(SummaryCache.activitySnapshot(from: summary))
+        XCTAssertEqual(snapshot.day, "2026-11-10")
+        XCTAssertEqual(snapshot.steps, 2_800)
+        XCTAssertEqual(snapshot.activeCalories, 353)
+        XCTAssertEqual(snapshot.movement, [0, 2, 0])
+        XCTAssertEqual(snapshot.reportURL?.absoluteString, "openoura://activity/2026-11-10")
+        XCTAssertNil(SummaryCache.activitySnapshot(from: Summary()))
+    }
+
     func testImperialTemperatureTrendUsesAbsoluteValuesAndLeavesSummaryInCelsius() throws {
         let night = NightRow(ymd: "2026-09-26", skin_temp: 35)
         let summary = Summary(nights: [night])

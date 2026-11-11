@@ -76,6 +76,7 @@ targets:
       - path: Core.swift
       - path: WorkCoordinator.swift
       - path: Components.swift
+      - path: ActivityWidgetSupport.swift
       - path: Reports.swift
       - path: DayExport.swift
       - path: RawData.swift
@@ -123,6 +124,8 @@ targets:
         buildPhase: resources
     dependencies:
       - sdk: HealthKit.framework
+      - target: ActivityWidget
+        embed: true
       # Rust core (static lib in an xcframework) — link, don't embed
       - framework: ../OuraCore.xcframework
         embed: false
@@ -141,6 +144,21 @@ targets:
       - framework: ../libtorch-xcframeworks/libtorch_global_deps.xcframework
         embed: true
         codeSign: true
+
+  ActivityWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: ActivityWidget/ActivityWidget.swift
+      - path: ActivityWidgetSupport.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: md.thomas.openoura.activity-widget
+        INFOPLIST_FILE: ActivityWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: ActivityWidget/ActivityWidget.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
 
   OuraAppTests:
     type: bundle.unit-test

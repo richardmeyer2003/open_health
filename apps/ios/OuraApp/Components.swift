@@ -486,29 +486,3 @@ struct Hypnogram: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
-
-// Continuous movement ridge from the 96 × 15-min MET-above-rest buckets — the web
-// actogram's ridge, model-free (computed from raw MET). One day's profile.
-struct MovementRidge: View {
-    let profile: [Double]
-    var height: CGFloat = 44
-    var body: some View {
-        Canvas { ctx, size in
-            guard profile.count > 1 else { return }
-            let peak = max(profile.max() ?? 1, 0.5)
-            let n = profile.count
-            func pt(_ i: Int) -> CGPoint {
-                CGPoint(x: size.width * CGFloat(i) / CGFloat(n - 1),
-                        y: size.height * (1 - CGFloat(min(1, profile[i] / peak))))
-            }
-            var area = Path(); area.move(to: CGPoint(x: 0, y: size.height))
-            for i in 0..<n { area.addLine(to: pt(i)) }
-            area.addLine(to: CGPoint(x: size.width, y: size.height)); area.closeSubpath()
-            ctx.fill(area, with: .color(Obs.chart.opacity(0.14)))
-            var line = Path(); line.move(to: pt(0))
-            for i in 1..<n { line.addLine(to: pt(i)) }
-            ctx.stroke(line, with: .color(Obs.chart.opacity(0.85)), style: .init(lineWidth: 1.2, lineJoin: .round))
-        }
-        .frame(height: height)
-    }
-}

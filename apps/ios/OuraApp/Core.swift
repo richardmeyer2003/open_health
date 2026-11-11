@@ -41,11 +41,27 @@ enum SummaryCache {
         queue.async {
             guard let data = try? JSONEncoder().encode(CachedSummary(summary: summary, workouts: summary.workouts, illness: summary.illness)) else { return }
             try? data.write(to: url, options: .atomic)
+            ActivityWidgetStore.publish(activitySnapshot(from: summary))
         }
     }
 
+    static func activitySnapshot(from summary: Summary) -> ActivityWidgetSnapshot? {
+        guard let day = summary.days.first else { return nil }
+        let totals = summary.activity_daily[day]
+        let movement = summary.activity_profile[day] ?? []
+        guard totals != nil || !movement.isEmpty else { return nil }
+        return ActivityWidgetSnapshot(
+            day: day, steps: (totals?.steps).flatMap { Int(exactly: $0.rounded(.towardZero)) },
+            activeCalories: (totals?.active_kcal).flatMap { Int(exactly: $0.rounded(.towardZero)) },
+            movement: movement
+        )
+    }
+
     static func clear() {
-        queue.sync { try? FileManager.default.removeItem(at: url) }
+        queue.sync {
+            try? FileManager.default.removeItem(at: url)
+            ActivityWidgetStore.publish(nil)
+        }
     }
 }
 

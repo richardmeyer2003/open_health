@@ -56,7 +56,7 @@ struct TodayCard: View {
                         }
                         Image(systemName: "chevron.right").font(.system(size: 11)).foregroundStyle(Obs.trace)
                     }
-                    MovementRidge(profile: s.activity_profile[day] ?? [])
+                    MovementRidge(profile: s.activity_profile[day] ?? [], color: Obs.chart)
                     ForEach(Array(s.workoutsOn(day).prefix(2))) { w in
                         SessionRow(label: w.label, durationMin: w.durationMin, startHM: w.startHM)
                     }
@@ -801,6 +801,7 @@ struct RootView: View {
     @State private var showProfile = false
     @State private var showSleepDebt = false
     @State private var vital: VitalKind?
+    @State private var pendingActivityDay: String?
     @State private var loadGeneration = 0
     @State private var isRefreshingSummary = false
     @State private var automaticSyncRequested = false
@@ -831,6 +832,14 @@ struct RootView: View {
         let stamp = [day, time].compactMap { $0 }.joined(separator: " · ")
         return stamp.isEmpty ? "latest sync" : "latest · \(stamp)"
     }
+
+    private func openPendingActivityReport() {
+        guard let day = pendingActivityDay, let s, s.error == nil else { return }
+        pendingActivityDay = nil
+        guard s.days.contains(day) else { return }
+        report = ReportSel(day: day, sleep: false)
+    }
+
     var body: some View {
         ZStack {
             Obs.canvas.ignoresSafeArea()
@@ -844,6 +853,12 @@ struct RootView: View {
             }
         }
         .fullScreenCover(item: $report) { sel in if let s { DayReportView(s: s, day: sel.day, tab: sel.sleep ? .sleep : .activity) } }
+        .onOpenURL { url in
+            guard url.scheme == "openoura", url.host == "activity" else { return }
+            pendingActivityDay = url.lastPathComponent
+            openPendingActivityReport()
+        }
+        .onChange(of: s?.days) { _, _ in openPendingActivityReport() }
         .sheet(isPresented: $showAllDays) { if let s { AllDaysView(s: s) } }
         .onAppear(perform: applyLaunchArguments)
         .sheet(isPresented: $showSync) {

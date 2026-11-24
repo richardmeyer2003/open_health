@@ -30,11 +30,14 @@ enum ScriptableSnapshot {
             guard let optional, optional.isFinite else { return NSNull() }
             return optional
         }
-        func encoded<T: Encodable>(_ object: T?) throws -> Any {
+        func encoded<T: Encodable>(_ object: T?, required: [String] = []) throws -> Any {
             guard let object else { return NSNull() }
             let encoder = JSONEncoder()
             encoder.nonConformingFloatEncodingStrategy = .convertToString(positiveInfinity: "nonfinite", negativeInfinity: "nonfinite", nan: "nonfinite")
-            return try JSONSerialization.jsonObject(with: encoder.encode(object), options: .fragmentsAllowed)
+            let result = try JSONSerialization.jsonObject(with: encoder.encode(object), options: .fragmentsAllowed)
+            guard var dictionary = result as? [String: Any] else { return result }
+            for key in required where dictionary[key] == nil { dictionary[key] = NSNull() }
+            return dictionary
         }
         func metrics(_ n: NightRow) -> SleepMetrics? {
             guard n.stagingComplete, n.hasHypnogram else { return nil }
@@ -63,7 +66,8 @@ enum ScriptableSnapshot {
             }
             let active = buckets.compactMap { $0 as? Double }
             #if TORCH
-            let workouts: Any = s.modelErrors.contains(where: { $0.contains("activity") }) ? NSNull()
+            let workouts: Any = Bundle.main.url(forResource: "automatic_activity_detection_3_1_11", withExtension: "ptl") == nil
+                || s.modelErrors.contains(where: { $0.contains("activity") }) ? NSNull()
                 : s.workoutsOn(day).map { w -> [String: Any] in
                     ["start_local": w.start, "end_local": w.end, "duration_min": w.durationMin,
                      "label": w.label, "workout_probability": number(w.isWorkout)]
@@ -116,7 +120,7 @@ enum ScriptableSnapshot {
             let stageData: Any
             if let codes = n.hypnogram, !codes.isEmpty, let start = n.start_unix, let end = n.end_unix, end > start {
                 // analysisStages is the exact grid used by the existing chart and metrics.
-                stageData = ["start_at": timestamp(start), "epoch_seconds": n.durationS / Double(codes.count), "codes": codes]
+                stageData = ["start_at": timestamp(start), "epoch_seconds": n.durationS / Double(codes.count), "codes": n.analysisStages]
             } else { stageData = NSNull(); unavailable["sleep.stages"] = "no_stage_data" }
             if m == nil {
                 for key in ["asleep_seconds", "efficiency_percent", "clinical_metrics", "autonomic_by_stage"] {
@@ -126,6 +130,13 @@ enum ScriptableSnapshot {
             let debt = s.sleepDebt.flatMap { $0.valid ? $0 : nil }
             if debt == nil { unavailable["sleep.debt"] = "insufficient_valid_staged_nights" }
             if n.sleep_score == nil { unavailable["sleep.score"] = "no_calculated_value" }
+            let score: Any = try n.sleep_score.map { score -> [String: Any] in
+                ["score": number(score.score), "basis": value(score.basis),
+                 "components": try score.components.map { component -> [String: Any] in
+                    ["key": component.key, "score": number(component.score), "weight": number(component.weight),
+                     "detail": try encoded(component.detail)]
+                 }]
+            } ?? NSNull() as Any
             sleep = ["date": value(s.wakeYmd(n)), "start_at": timestamp(n.start_unix), "end_at": timestamp(n.end_unix),
                      "in_bed_seconds": number(n.durationS), "asleep_seconds": number(m.map { $0.asleepMin * 60 }),
                      "efficiency_percent": number(m.flatMap { n.durationS > 0 ? $0.asleepMin * 60 / n.durationS * 100 : nil }),
@@ -137,8 +148,10 @@ enum ScriptableSnapshot {
                                  "skin_temperature": signal(n.series_t?.temp, unit: "degF"),
                                  "motion": signal(n.series_t?.motion, unit: "s"),
                                  "oxygen_saturation": signal(n.series_t?.spo2, unit: "%")],
-                     "score": try encoded(n.sleep_score), "clinical_metrics": try encoded(m.map(DayExport.Metrics.init)),
-                     "autonomic_by_stage": try encoded(autonomic.flatMap { $0.any ? $0 : nil }), "debt": try encoded(debt)]
+                     "score": score,
+                     "clinical_metrics": try encoded(m.map(DayExport.Metrics.init), required: ["rem_latency_min", "deep_first_half_pct", "rem_first_half_pct"]),
+                     "autonomic_by_stage": try encoded(autonomic.flatMap { $0.any ? $0 : nil }, required: ["hrv_deep", "hrv_light", "hrv_rem", "hr_deep", "hr_light", "hr_rem"]),
+                     "debt": try encoded(debt)]
         } else { unavailable["sleep"] = "no_timed_sleep_data" }
 
         let cardiovascular: [String: Any] = [

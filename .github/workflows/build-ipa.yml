@@ -10,7 +10,24 @@ permissions:
   contents: write
 
 jobs:
+  swift:
+    runs-on: macos-15-intel
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Typecheck Swift before building Rust
+        working-directory: apps/ios/OuraApp
+        run: |
+          SOURCES=$(python3 -c 'import re; text=open("project-ci.yml").read().split("    sources:",1)[1].split("    dependencies:",1)[0]; print(" ".join(re.findall(r"path: (\S+\.swift)",text)))')
+          swiftc -typecheck -parse-as-library -module-name OuraApp \
+            -target arm64-apple-ios17.0-simulator \
+            -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
+            -Xcc -fmodule-map-file=../generated/oura_coreFFI.modulemap $SOURCES
+
   build:
+    needs: swift
     runs-on: macos-15-intel
     timeout-minutes: 120
     env:

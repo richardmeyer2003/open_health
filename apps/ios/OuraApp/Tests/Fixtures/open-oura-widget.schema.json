@@ -1,0 +1,1601 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "is_example": {
+      "type": "boolean"
+    },
+    "exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "export_reason": {
+      "enum": [
+        "sync",
+        "manual"
+      ]
+    },
+    "timezone": {
+      "type": "string"
+    },
+    "utc_offset_seconds": {
+      "type": "integer"
+    },
+    "display_units": {
+      "const": "imperial"
+    },
+    "app": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "build": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "analysis_version": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "build_has_sleep_models": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "build",
+        "analysis_version",
+        "build_has_sleep_models"
+      ],
+      "additionalProperties": false
+    },
+    "sync": {
+      "type": "object",
+      "properties": {
+        "last_successful_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "last_successful_source": {
+          "enum": [
+            "manual",
+            "automatic",
+            null
+          ]
+        },
+        "events_received": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "events_inserted": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "summary_generated_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "last_successful_at",
+        "last_successful_source",
+        "events_received",
+        "events_inserted",
+        "summary_generated_at"
+      ],
+      "additionalProperties": false
+    },
+    "ring": {
+      "type": "object",
+      "properties": {
+        "battery_percent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "battery_voltage_v": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "battery_recorded_label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "battery_recorded_time_local": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "battery_age_hours": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "observed_days": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "nights_recorded": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "battery_percent",
+        "battery_voltage_v",
+        "battery_recorded_label",
+        "battery_recorded_time_local",
+        "battery_age_hours",
+        "observed_days",
+        "nights_recorded"
+      ],
+      "additionalProperties": false
+    },
+    "activity": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "steps": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "active_kcal": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "total_kcal": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "distance_mi": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "active_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "lightly_active_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "peak_met_above_rest": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "movement": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "start_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "interval_seconds": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "values": {
+              "type": "array",
+              "items": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "required": [
+            "start_at",
+            "interval_seconds",
+            "unit",
+            "values"
+          ],
+          "additionalProperties": false
+        },
+        "workouts": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "object",
+            "properties": {
+              "start_local": {
+                "type": "string"
+              },
+              "end_local": {
+                "type": "string"
+              },
+              "duration_min": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "workout_probability": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "start_local",
+              "end_local",
+              "duration_min",
+              "label",
+              "workout_probability"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "date",
+        "steps",
+        "active_kcal",
+        "total_kcal",
+        "distance_mi",
+        "active_min",
+        "lightly_active_min",
+        "peak_met_above_rest",
+        "movement",
+        "workouts"
+      ],
+      "additionalProperties": false
+    },
+    "vitals": {
+      "type": "object",
+      "properties": {
+        "heart_rate": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "bpm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "measured_at": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "bpm",
+            "measured_at"
+          ],
+          "additionalProperties": false
+        },
+        "nightly_hrv": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "rmssd_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "baseline_ms": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "delta_percent": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "rmssd_ms",
+            "baseline_ms",
+            "delta_percent"
+          ],
+          "additionalProperties": false
+        },
+        "nightly_resting_heart_rate": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bpm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "baseline_bpm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "delta_percent": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "bpm",
+            "baseline_bpm",
+            "delta_percent"
+          ],
+          "additionalProperties": false
+        },
+        "skin_temperature": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "fahrenheit": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "fahrenheit"
+          ],
+          "additionalProperties": false
+        },
+        "oxygen_saturation": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "date": {
+              "type": "string",
+              "format": "date"
+            },
+            "percent": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "percent"
+          ],
+          "additionalProperties": false
+        },
+        "respiratory_rate": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "breaths_per_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "date",
+            "breaths_per_min"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "heart_rate",
+        "nightly_hrv",
+        "nightly_resting_heart_rate",
+        "skin_temperature",
+        "oxygen_saturation",
+        "respiratory_rate"
+      ],
+      "additionalProperties": false
+    },
+    "sleep": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "end_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "in_bed_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "asleep_seconds": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "efficiency_percent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "stages": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "start_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "epoch_seconds": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "codes": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              }
+            }
+          },
+          "required": [
+            "start_at",
+            "epoch_seconds",
+            "codes"
+          ],
+          "additionalProperties": false,
+          "description": "0 unknown, 1 deep, 2 light, 3 REM, 4 awake. Export timed stages only when available."
+        },
+        "staging_source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "staging_coverage_percent": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "staging_complete": {
+          "type": "boolean"
+        },
+        "signals": {
+          "type": "object",
+          "properties": {
+            "sample_limit_per_signal": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "heart_rate": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "samples": {
+                  "type": "array",
+                  "maxItems": 96,
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      },
+                      {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "unit",
+                "samples"
+              ],
+              "additionalProperties": false
+            },
+            "hrv": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "samples": {
+                  "type": "array",
+                  "maxItems": 96,
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      },
+                      {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "unit",
+                "samples"
+              ],
+              "additionalProperties": false
+            },
+            "skin_temperature": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "samples": {
+                  "type": "array",
+                  "maxItems": 96,
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      },
+                      {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "unit",
+                "samples"
+              ],
+              "additionalProperties": false
+            },
+            "motion": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "unit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "samples": {
+                  "type": "array",
+                  "maxItems": 96,
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      },
+                      {
+                        "type": [
+                          "number",
+                          "null"
+                        ]
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "unit",
+                "samples"
+              ],
+              "additionalProperties": false
+            },
+            "oxygen_saturation": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "unit": {
+                  "type": "string"
+                },
+                "samples": {
+                  "type": "array",
+                  "maxItems": 96,
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "number"
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  }
+                }
+              },
+              "required": [
+                "unit",
+                "samples"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "sample_limit_per_signal",
+            "heart_rate",
+            "hrv",
+            "skin_temperature",
+            "motion",
+            "oxygen_saturation"
+          ],
+          "additionalProperties": false
+        },
+        "score": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "score": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "basis": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "components": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "weight": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "detail": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "required": [
+                  "key",
+                  "score",
+                  "weight",
+                  "detail"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "score",
+            "basis",
+            "components"
+          ],
+          "additionalProperties": false
+        },
+        "clinical_metrics": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "asleep_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "sol_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rem_latency_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "waso_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "awakenings": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "cycles": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "frag_index": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "deep_first_half_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rem_first_half_pct": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "asleep_min",
+            "sol_min",
+            "rem_latency_min",
+            "waso_min",
+            "awakenings",
+            "cycles",
+            "frag_index",
+            "deep_first_half_pct",
+            "rem_first_half_pct"
+          ],
+          "additionalProperties": false
+        },
+        "autonomic_by_stage": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "hrv_deep": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hrv_light": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hrv_rem": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hr_deep": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hr_light": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hr_rem": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "hrv_deep",
+            "hrv_light",
+            "hrv_rem",
+            "hr_deep",
+            "hr_light",
+            "hr_rem"
+          ],
+          "additionalProperties": false
+        },
+        "debt": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "debt_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "recent_shortfall_min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "need_h": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "valid": {
+              "type": "boolean"
+            },
+            "valid_days": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "window_days": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "state": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "days": {
+              "type": "array",
+              "maxItems": 14,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "total_sleep_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "sleep_need_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "shortfall_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "cumulative_debt_min": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "valid_days": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "date",
+                  "total_sleep_min",
+                  "sleep_need_min",
+                  "shortfall_min",
+                  "cumulative_debt_min",
+                  "valid_days"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "debt_min",
+            "recent_shortfall_min",
+            "need_h",
+            "valid",
+            "valid_days",
+            "window_days",
+            "state",
+            "days"
+          ],
+          "additionalProperties": false,
+          "description": "Only export a usable debt result according to the existing calculation's validity flag."
+        }
+      },
+      "required": [
+        "date",
+        "start_at",
+        "end_at",
+        "in_bed_seconds",
+        "asleep_seconds",
+        "efficiency_percent",
+        "stages",
+        "staging_source",
+        "staging_coverage_percent",
+        "staging_complete",
+        "signals",
+        "score",
+        "clinical_metrics",
+        "autonomic_by_stage",
+        "debt"
+      ],
+      "additionalProperties": false
+    },
+    "cardiovascular": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "vo2max_ml_kg_min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "vo2max_method": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vascular_age_years": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "chronological_age_years": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "pulse_wave_velocity_ft_s": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "segments_analyzed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "vo2max_ml_kg_min",
+        "vo2max_method",
+        "vascular_age_years",
+        "chronological_age_years",
+        "pulse_wave_velocity_ft_s",
+        "segments_analyzed"
+      ],
+      "additionalProperties": false
+    },
+    "symptom_radar": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "traffic_light": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "score": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "decision": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "days_with_data": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "biomarkers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "value": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lower": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "upper": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "unit": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "indicates_symptoms": {
+                "type": "boolean"
+              },
+              "reason": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "value",
+              "lower",
+              "upper",
+              "unit",
+              "indicates_symptoms",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "date",
+        "source",
+        "available",
+        "status",
+        "traffic_light",
+        "score",
+        "decision",
+        "days_with_data",
+        "biomarkers"
+      ],
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "age_years": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "biological_sex": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "height_in": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "weight_lb": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "ring_size": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "age_years",
+        "biological_sex",
+        "height_in",
+        "weight_lb",
+        "ring_size"
+      ],
+      "additionalProperties": false
+    },
+    "history": {
+      "type": "object",
+      "properties": {
+        "window_days": {
+          "const": 14
+        },
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "steps": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "active_kcal": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "total_kcal": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "distance_mi": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "hrv_ms": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "resting_heart_rate_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "skin_temperature_f": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "spo2_percent": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "breaths_per_min": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "in_bed_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "asleep_seconds": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sleep_score": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "date",
+              "steps",
+              "active_kcal",
+              "total_kcal",
+              "distance_mi",
+              "hrv_ms",
+              "resting_heart_rate_bpm",
+              "skin_temperature_f",
+              "spo2_percent",
+              "breaths_per_min",
+              "in_bed_seconds",
+              "asleep_seconds",
+              "sleep_score"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 14
+        },
+        "hourly_heart_rate": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "start_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "p05_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "p95_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "median_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "min_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "max_bpm": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "sample_count": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "start_at",
+              "p05_bpm",
+              "p95_bpm",
+              "median_bpm",
+              "min_bpm",
+              "max_bpm",
+              "sample_count"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 24
+        }
+      },
+      "required": [
+        "window_days",
+        "days",
+        "hourly_heart_rate"
+      ],
+      "additionalProperties": false
+    },
+    "availability": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "model_errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "is_example",
+    "exported_at",
+    "export_reason",
+    "timezone",
+    "utc_offset_seconds",
+    "display_units",
+    "app",
+    "sync",
+    "ring",
+    "activity",
+    "vitals",
+    "sleep",
+    "cardiovascular",
+    "symptom_radar",
+    "profile",
+    "history",
+    "availability",
+    "warnings",
+    "model_errors"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:open-oura:widget-export:1",
+  "title": "Proposed Open Oura widget snapshot v1",
+  "description": "Proposal only. Null means no usable calculated value. is_example marks synthetic development data."
+}

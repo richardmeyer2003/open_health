@@ -53,12 +53,17 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
         }
     }
 
+    func folderSelectionFailed(_ error: Error) {
+        guard (error as NSError).code != NSUserCancelledError else { return }
+        queue.async { self.failed(error) }
+    }
+
     /// Runs for every successful manual or automatic sync, including zero new events.
     func synchronized(at date: Date, source: String, report: SyncReport) {
         queue.async {
             let metadata: [String: Any] = [
                 "last_successful_at": ISO8601DateFormatter().string(from: date),
-                "last_successful_source": source, "events_received": report.eventsSynced,
+                "last_successful_source": source == "manual" ? "manual" : "automatic", "events_received": report.eventsSynced,
                 "events_inserted": report.inserted
             ]
             self.defaults.set(metadata, forKey: self.prefix + "sync")
@@ -204,7 +209,7 @@ struct ScriptableIntegrationSection: View {
         .fileImporter(isPresented: $selectingFolder, allowedContentTypes: [.folder]) { result in
             switch result {
             case .success(let url): integration.chooseFolder(url)
-            case .failure: break // Cancelling the picker leaves the existing authorization intact.
+            case .failure(let error): integration.folderSelectionFailed(error)
             }
         }
     }

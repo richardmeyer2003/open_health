@@ -105,6 +105,23 @@ final class ScriptableTests: XCTestCase {
         XCTAssertTrue(values.last is NSNull)
     }
 
+    func testStageDependentResultsPreserveNullFieldsInSchemaV1() throws {
+        var n = NightRow(ymd: "2026-11-22", hrv_ms: 30, rhr: 55)
+        n.start_unix = Int64(now.timeIntervalSince1970 - 3600)
+        n.end_unix = Int64(now.timeIntervalSince1970 - 600)
+        n.stages_full = Array(repeating: 2, count: 100)
+        n.staging_source = "ring"
+        n.sleep_score = SleepScore(score: 80, components: [SleepScoreComponent(key: "duration", score: 80, weight: 1)])
+        var s = Summary(nights: [n])
+        s.sleepDebt = SleepDebtSummary(valid: true, days: [SleepDebtDay(date: "2026-11-22", sleep_need_min: 480, valid_days: 1)])
+        let sleep = try XCTUnwrap(try snapshot(s)["sleep"] as? [String: Any])
+        XCTAssertFalse(sleep["stages"] is NSNull)
+        let clinical = try XCTUnwrap(sleep["clinical_metrics"] as? [String: Any])
+        XCTAssertTrue(clinical["rem_latency_min"] is NSNull)
+        let score = try XCTUnwrap(sleep["score"] as? [String: Any])
+        XCTAssertTrue(score["basis"] is NSNull)
+    }
+
     func testAtomicReplacementLeavesACompleteLatestDocument() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

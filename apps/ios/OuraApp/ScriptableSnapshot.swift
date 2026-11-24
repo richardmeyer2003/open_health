@@ -128,6 +128,13 @@ enum ScriptableSnapshot {
                 }
             }
             let debt = s.sleepDebt.flatMap { $0.valid ? $0 : nil }
+            var debtData = try encoded(debt)
+            if var object = debtData as? [String: Any], let debt {
+                object["days"] = try debt.days.map {
+                    try encoded($0, required: ["total_sleep_min", "shortfall_min", "cumulative_debt_min"])
+                }
+                debtData = object
+            }
             if debt == nil { unavailable["sleep.debt"] = "insufficient_valid_staged_nights" }
             if n.sleep_score == nil { unavailable["sleep.score"] = "no_calculated_value" }
             let score: Any = try n.sleep_score.map { score -> [String: Any] in
@@ -151,7 +158,7 @@ enum ScriptableSnapshot {
                      "score": score,
                      "clinical_metrics": try encoded(m.map(DayExport.Metrics.init), required: ["rem_latency_min", "deep_first_half_pct", "rem_first_half_pct"]),
                      "autonomic_by_stage": try encoded(autonomic.flatMap { $0.any ? $0 : nil }, required: ["hrv_deep", "hrv_light", "hrv_rem", "hr_deep", "hr_light", "hr_rem"]),
-                     "debt": try encoded(debt)]
+                     "debt": debtData]
         } else { unavailable["sleep"] = "no_timed_sleep_data" }
 
         let cardiovascular: [String: Any] = [

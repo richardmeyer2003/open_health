@@ -72,6 +72,7 @@ final class BLETransport: NSObject, RingTransport, CBCentralManagerDelegate, CBP
     private var writeChar: CBCharacteristic?
     private let nameContains: String
     private let preferredPeripheralID: UUID?
+    private let requiresPreferredPeripheral: Bool
     private let excludedPeripheralIDs: Set<UUID>
     private var scanStartedAt: Date?
 
@@ -112,10 +113,12 @@ final class BLETransport: NSObject, RingTransport, CBCentralManagerDelegate, CBP
 
     init(nameContains: String = "Oura",
          preferredPeripheralID: UUID? = nil,
-         excludedPeripheralIDs: Set<UUID> = []) {
+         excludedPeripheralIDs: Set<UUID> = [],
+         requiresPreferredPeripheral: Bool = false) {
         self.nameContains = nameContains
         self.preferredPeripheralID = preferredPeripheralID
         self.excludedPeripheralIDs = excludedPeripheralIDs
+        self.requiresPreferredPeripheral = requiresPreferredPeripheral
         super.init()
         // CoreBluetooth requires a SERIAL queue for delegate callbacks; a concurrent
         // global queue can deliver them out of order (e.g. a notify confirmation
@@ -174,6 +177,17 @@ final class BLETransport: NSObject, RingTransport, CBCentralManagerDelegate, CBP
     }
 
     private func startScan() {
+        if requiresPreferredPeripheral {
+            guard peripheral == nil else { return }
+            if let preferredPeripheralID,
+               let known = central.retrievePeripherals(withIdentifiers: [preferredPeripheralID]).first {
+                connect(to: known)
+            } else {
+                stage = "scanning for the paired ring"
+                central.scanForPeripherals(withServices: [RingUUID.service], options: nil)
+            }
+            return
+        }
         scanStartedAt = Date()
         lock.lock(); stage = "scanning; no ring advertisement seen yet"; lock.unlock()
         dlog("ble", "scanning (unfiltered, allow duplicates); matching service \(RingUUID.service)")
@@ -250,6 +264,10 @@ final class BLETransport: NSObject, RingTransport, CBCentralManagerDelegate, CBP
         // callback queued just past the timeout) — don't start a stray connection.
         lock.lock(); let active = connectCont != nil; lock.unlock()
         guard active, !closed, self.peripheral == nil else { return }
+        if requiresPreferredPeripheral {
+            if peripheral.identifier == preferredPeripheralID { connect(to: peripheral) }
+            return
+        }
         let advName = (advertisementData[CBAdvertisementDataLocalNameKey] as? String)
             ?? peripheral.name ?? ""
         let advServices = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
@@ -314,11 +332,14 @@ final class BLETransport: NSObject, RingTransport, CBCentralManagerDelegate, CBP
             }
             return
         }
-        guard self.peripheral == nil else { return }
-        central.stopScan()
         dlog("ble", "ring matched id=\(peripheral.identifier.uuidString.suffix(12)) rssi=\(RSSI) otherDevices=\(otherDevices.count); connecting")
+        connect(to: peripheral)
+    }
+
+    private func connect(to peripheral: CBPeripheral) {
+        central.stopScan()
         lock.lock()
-        stage = "GATT-connecting to the discovered ring"
+        stage = "GATT-connecting to the paired or discovered ring"
         _connectedPeripheralID = peripheral.identifier
         lock.unlock()
         self.peripheral = peripheral

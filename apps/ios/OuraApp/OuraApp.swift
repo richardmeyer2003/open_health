@@ -812,7 +812,7 @@ struct RootView: View {
     @State private var isRefreshingSummary = false
     @State private var automaticSyncRequested = false
     @State private var reloadPending = false
-    @StateObject private var ring = RingSync()
+    @StateObject private var ring = RingSync.shared
     @StateObject private var modelProgress = ModelProgress()
     private func f(_ v: Double?, _ fallback: String = "–") -> String {
         v.map { "\(Int($0))" } ?? fallback
@@ -885,6 +885,9 @@ struct RootView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in
             requestAutomaticSync()
+        }
+        .onChange(of: ring.lastShortcutSyncAt) { _, _ in
+            if WorkCoordinator.shared.available { load(force: true, clearCurrent: false) }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

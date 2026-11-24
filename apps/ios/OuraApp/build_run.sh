@@ -29,6 +29,7 @@ xcrun -sdk iphonesimulator swiftc \
     "$APPDIR/ActivityWidgetSupport.swift" \
     "$APPDIR/ScriptableIntegration.swift" "$APPDIR/ScriptableSnapshot.swift" \
     "$APPDIR/BLETransport.swift" "$APPDIR/RingSync.swift" "$APPDIR/ProfileSettings.swift" \
+    "$APPDIR/SyncRingIntent.swift" \
     "$APPDIR/ModelProgress.swift" "$APPDIR/Diagnostics.swift" "$APPDIR/HealthExport.swift" "$APPDIR/DayExport.swift" "$APPDIR/WorkCoordinator.swift" \
     "$APPDIR/HeartRate.swift" "$APPDIR/RawData.swift" "$APPDIR/ResearchExport.swift" "$BUILD/CrashCatch.o" \
     -L "$XCF" -loura_core -lsqlite3 \

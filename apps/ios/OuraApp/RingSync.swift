@@ -309,12 +309,15 @@ final class SyncProgressBridge: SyncProgressListener, @unchecked Sendable {
 /// Orchestrates a sync and exposes progress to the UI.
 @MainActor
 final class RingSync: ObservableObject {
+    static let shared = RingSync()
+
     @Published var status: String = ""
     @Published var busy = false
     @Published private(set) var exportStatus: String?
     @Published var connectionIssue: String?
     @Published var lastReport: SyncReport?
     @Published private(set) var lastSuccessfulSyncAt: Date?
+    @Published private(set) var lastShortcutSyncAt: Date?
     /// Serial of the ring this phone last talked to — used to confirm a factory reset
     /// targets THIS ring and not one that merely won the scan.
     @Published private(set) var knownSerial: String? = UserDefaults.standard.string(forKey: "ring.serial")
@@ -337,6 +340,7 @@ final class RingSync: ObservableObject {
     private var lastAutomaticAttemptAt: Date?
     private var markedIncompleteThisRun = false
     private var paused = false
+    private var syncingFromShortcut = false
     private var runID = ""
     private var attemptID = ""
     private var progressLogAt = 0.0
@@ -364,6 +368,7 @@ final class RingSync: ObservableObject {
             lifecycleObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in
                     guard let self, self.busy else { return }
+                    if self.syncingFromShortcut && name == UIApplication.didEnterBackgroundNotification { return }
                     WorkCoordinator.shared.beginCleanup()
                     self.pause()
                 }
@@ -621,6 +626,10 @@ final class RingSync: ObservableObject {
     @discardableResult
     func run(keyHex: String, maxAttempts: Int = 6, source: String = "manual") async -> SyncReport? {
         guard !busy else { return nil }
+        let fromShortcut = source == "shortcut"
+        var canRun: Bool {
+            fromShortcut ? UIApplication.shared.isProtectedDataAvailable : WorkCoordinator.shared.available
+        }
         connectionIssue = nil
         lastReport = nil   // clear any prior success so a failed retry isn't read as one
         lastProgressBytes = nil
@@ -634,20 +643,40 @@ final class RingSync: ObservableObject {
             status = "key must be 32 hex characters"
             return nil
         }
-        guard WorkCoordinator.shared.available else { status = "Sync paused. Open the app to resume."; return nil }
+        guard canRun else { status = "Sync paused. Open the app to resume."; return nil }
         busy = true
         paused = false
-        WorkCoordinator.shared.invalidateAnalysis()
-        await WorkGate.shared.acquire()
+        syncingFromShortcut = fromShortcut
+        defer { syncingFromShortcut = false }
+        if fromShortcut {
+            guard await WorkGate.shared.tryAcquire() else {
+                busy = false
+                status = "Open Oura is already using the ring data. Try again shortly."
+                return nil
+            }
+        } else {
+            WorkCoordinator.shared.invalidateAnalysis()
+            await WorkGate.shared.acquire()
+        }
         defer { Task { await WorkGate.shared.release() }; WorkCoordinator.shared.endCleanup() }
-        guard !paused, WorkCoordinator.shared.available else { busy = false; return nil }
+        guard !paused, !Task.isCancelled, canRun else { busy = false; return nil }
         markedIncompleteThisRun = false
         // A multi-hour first sync must not die because the screen locked; SyncView
         // refreshes this when the app becomes active again.
-        IdleTimerLock.acquire("ring-sync")
+        if !fromShortcut { IdleTimerLock.acquire("ring-sync") }
+        var timedOut = false
+        let deadline: Task<Void, Never>? = fromShortcut ? Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(25)) } catch { return }
+            timedOut = true
+            pause()
+        } : nil
         defer {
+            deadline?.cancel()
+            if timedOut && lastReport == nil {
+                status = "The shortcut sync timed out. Keep the ring nearby and try again, or open Open Oura to finish syncing."
+            }
             busy = false
-            IdleTimerLock.release("ring-sync")
+            if !fromShortcut { IdleTimerLock.release("ring-sync") }
             pump?.cancel()
             pump = nil
             // release the ring's single BLE link — holding it after the sync would
@@ -666,7 +695,7 @@ final class RingSync: ObservableObject {
         var attempt = 1
         var totalBudget = max(1, maxAttempts)
         while attempt <= totalBudget {
-            if paused || Task.isCancelled || !WorkCoordinator.shared.available { status = "Sync paused. Return to the app to resume."; return nil }
+            if paused || Task.isCancelled || !canRun { status = "Sync paused. Return to the app to resume."; return nil }
             attemptID = UUID().uuidString
             dlog("sync", "attempt=\(attempt) id=\(attemptID) run=\(runID)")
             if attempt > 1 {
@@ -676,7 +705,7 @@ final class RingSync: ObservableObject {
                     status = "Connection lost. Retrying (\(attempt) of \(totalBudget))…"
                 }
                 do { try await Task.sleep(nanoseconds: delayNs) } catch { return nil }
-                guard !paused, WorkCoordinator.shared.available else { return nil }
+                guard !paused, canRun else { return nil }
             }
 
             if excludedPeripherals.isEmpty {
@@ -687,10 +716,11 @@ final class RingSync: ObservableObject {
             // BLETransport's notification stream is per-connection.
             let t = BLETransport(nameContains: "Oura",
                                  preferredPeripheralID: preferredPeripheralID,
-                                 excludedPeripheralIDs: excludedPeripherals)
+                                 excludedPeripheralIDs: excludedPeripherals,
+                                 requiresPreferredPeripheral: fromShortcut)
             transport = t
             do {
-                try await t.connect()
+                try await t.connect(timeout: fromShortcut ? 15 : 50)
             } catch {
                 if paused { status = "Sync paused. Return to the app to resume."; return nil }
                 dlog("sync", "BLE connect FAILED: \(error)")
@@ -738,7 +768,7 @@ final class RingSync: ObservableObject {
                 let expectedAttempt = attemptID
                 let progress = SyncProgressBridge { [weak self] stage, bytesLeft, events in
                     guard self?.attemptID == expectedAttempt, self?.busy == true, self?.paused == false else { return }
-                    if stage == "setup" {
+                    if stage == "setup", !fromShortcut {
                         Keychain.saveKey(key)
                     }
                     if events > 0 {
@@ -746,8 +776,13 @@ final class RingSync: ObservableObject {
                     }
                     self?.showProgress(stage: stage, bytesLeft: bytesLeft, events: events)
                 }
-                let report = try await s.sync(dbPath: DB.url.path, keyHex: key, progress: progress)
-                Keychain.saveKey(key)
+                let dbPath = DB.url.path
+                let report = try await withTaskCancellationHandler {
+                    try await s.sync(dbPath: dbPath, keyHex: key, progress: progress)
+                } onCancel: {
+                    t.abort()
+                }
+                if !fromShortcut { Keychain.saveKey(key) }
                 rememberSerial(report.serial)
                 rememberPeripheral(t.connectedPeripheralID)
 
@@ -775,7 +810,7 @@ final class RingSync: ObservableObject {
                 pump = nil
                 t.disconnect() // release the (possibly half-dead) link before retrying
                 if Self.isAuthenticationFailure(error) {
-                    if let badID = t.connectedPeripheralID,
+                    if !fromShortcut, let badID = t.connectedPeripheralID,
                        excludedPeripherals.count < 2,
                        excludedPeripherals.insert(badID).inserted {
                         if badID == preferredPeripheralID {
@@ -799,6 +834,28 @@ final class RingSync: ObservableObject {
         }
         dlog("sync", "failed run=\(runID) attempts=\(totalBudget) reason=\(status)")
         return nil
+    }
+
+    func syncFromShortcut() async throws -> SyncReport {
+        guard !busy else { throw ShortcutSyncError(message: "Open Oura is already syncing. Try again shortly.") }
+        guard UIApplication.shared.isProtectedDataAvailable else {
+            throw ShortcutSyncError(message: "Unlock the iPhone before syncing your ring.")
+        }
+        guard let key = Keychain.loadKey(), preferredPeripheralID != nil else {
+            throw ShortcutSyncError(message: "Complete a sync in Open Oura first so the shortcut can find your paired ring.")
+        }
+        try Task.checkCancellation()
+        guard let report = await run(keyHex: key, maxAttempts: 1, source: "shortcut") else {
+            try Task.checkCancellation()
+            throw ShortcutSyncError(message: status.isEmpty ? "Open Oura could not complete the sync." : status)
+        }
+        lastShortcutSyncAt = lastSuccessfulSyncAt
+        return report
+    }
+
+    private struct ShortcutSyncError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
     }
 
     /// Render Rust-side progress into the status line.

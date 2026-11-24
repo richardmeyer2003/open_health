@@ -45,6 +45,7 @@ xcrun -sdk iphonesimulator swiftc -O \
     "$APPDIR/ActivityWidgetSupport.swift" \
     "$APPDIR/ScriptableIntegration.swift" "$APPDIR/ScriptableSnapshot.swift" \
     "$APPDIR/BLETransport.swift" "$APPDIR/RingSync.swift" "$APPDIR/ProfileSettings.swift" \
+    "$APPDIR/SyncRingIntent.swift" \
     "$APPDIR/EventStore.swift" "$APPDIR/ModelCache.swift" "$APPDIR/ModelProgress.swift" \
     "$APPDIR/SleepStaging.swift" "$APPDIR/IbiCorrection.swift" "$APPDIR/CvaModel.swift" "$APPDIR/ActivityModel.swift" "$APPDIR/IllnessModel.swift" \
     "$APPDIR/Diagnostics.swift" "$APPDIR/HealthExport.swift" "$APPDIR/DayExport.swift" "$APPDIR/WorkCoordinator.swift" \

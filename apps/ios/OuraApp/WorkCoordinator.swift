@@ -6,8 +6,13 @@ actor WorkGate {
     static let shared = WorkGate()
     private var held = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    func tryAcquire() -> Bool {
+        guard !held else { return false }
+        held = true
+        return true
+    }
     func acquire() async {
-        if !held { held = true; return }
+        if tryAcquire() { return }
         await withCheckedContinuation { waiters.append($0) }
     }
     func release() {

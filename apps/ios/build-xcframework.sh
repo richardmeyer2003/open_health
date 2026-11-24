@@ -11,7 +11,15 @@ HEADERS="$REPO/apps/ios/generated/headers"   # UniFFI header + module.modulemap
 OUT="$REPO/apps/ios/OuraCore.xcframework"
 LIB="liboura_core.a"
 
-for t in aarch64-apple-ios aarch64-apple-ios-sim; do
+# Build the simulator library for the Mac running the tests. Device builds
+# always use the ARM iPhone target.
+case "$(uname -m)" in
+  arm64) SIM_TARGET=aarch64-apple-ios-sim ;;
+  x86_64) SIM_TARGET=x86_64-apple-ios ;;
+  *) echo "Unsupported Mac architecture" >&2; exit 1 ;;
+esac
+
+for t in aarch64-apple-ios "$SIM_TARGET"; do
   rustup target list --installed | grep -qx "$t" || rustup target add "$t"
 done
 
@@ -24,12 +32,12 @@ cp "$REPO/apps/ios/generated/oura_coreFFI.h" "$HEADERS/oura_coreFFI.h"
 
 echo "==> build oura-core (release) for device + simulator"
 cargo build -p oura-core --release --target aarch64-apple-ios
-cargo build -p oura-core --release --target aarch64-apple-ios-sim
+cargo build -p oura-core --release --target "$SIM_TARGET"
 
 rm -rf "$OUT"
 echo "==> create xcframework"
 xcodebuild -create-xcframework \
   -library "$REPO/target/aarch64-apple-ios/release/$LIB"     -headers "$HEADERS" \
-  -library "$REPO/target/aarch64-apple-ios-sim/release/$LIB" -headers "$HEADERS" \
+  -library "$REPO/target/$SIM_TARGET/release/$LIB" -headers "$HEADERS" \
   -output "$OUT"
 echo "✓ $OUT"

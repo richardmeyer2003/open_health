@@ -20,7 +20,6 @@ fi
 # put cargo/rustup on PATH whether freshly installed or image-provided
 [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env"
 rustup default stable 2>/dev/null || true
-rustup target add aarch64-apple-ios aarch64-apple-ios-sim
 
 REPO="${CI_PRIMARY_REPOSITORY_PATH:-$PWD}"
 

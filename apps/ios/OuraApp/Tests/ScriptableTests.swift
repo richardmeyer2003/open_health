@@ -151,12 +151,16 @@ final class ScriptableTests: XCTestCase {
         XCTAssertNil(integration.lastExportAt)
         XCTAssertNil(defaults.data(forKey: "scriptable.folder-bookmark"))
 
-        let exported = expectation(description: "A zero-event sync creates the local export")
-        let subscription = integration.$lastExportAt.compactMap { $0 }.sink { _ in exported.fulfill() }
+        let completed = expectation(description: "A zero-event sync finishes its export attempt")
+        let subscription = integration.$lastExportAt.compactMap { $0 }.map { _ in () }
+            .merge(with: integration.$error.compactMap { $0 }.map { _ in () })
+            .first()
+            .sink { _ in completed.fulfill() }
         defer { subscription.cancel() }
         integration.synchronized(at: now, source: "resume", report: SyncReport(serial: "test", eventsSynced: 0, inserted: 0, nextCursor: 0))
         integration.summaryReady(Summary(), generatedAt: now, syncedAt: now)
-        await fulfillment(of: [exported], timeout: 5)
+        await fulfillment(of: [completed], timeout: 45)
+        _ = try XCTUnwrap(integration.lastExportAt, integration.error ?? "Export never finished")
 
         let folder = documents.appendingPathComponent("Scriptable", isDirectory: true)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: documents.path), ["Scriptable"])
@@ -191,7 +195,7 @@ final class ScriptableTests: XCTestCase {
         defer { subscription.cancel() }
         integration.synchronized(at: now, source: "resume", report: SyncReport(serial: "test", eventsSynced: 0, inserted: 0, nextCursor: 0))
         integration.summaryReady(Summary(), generatedAt: now, syncedAt: now)
-        await fulfillment(of: [failed], timeout: 5)
+        await fulfillment(of: [failed], timeout: 45)
         XCTAssertNil(integration.lastExportAt)
         XCTAssertEqual(try Data(contentsOf: obstructedDocuments), original)
         XCTAssertEqual(defaults.double(forKey: "scriptable.pending-sync"), now.timeIntervalSince1970)

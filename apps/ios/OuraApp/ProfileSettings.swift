@@ -137,6 +137,7 @@ struct ProfileSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                ScriptableIntegrationSection()
                 Section {
                     Picker("Biological sex", selection: $profile.sex) {
                         Text("Female").tag("F")

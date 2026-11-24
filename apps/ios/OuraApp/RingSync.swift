@@ -756,6 +756,7 @@ final class RingSync: ObservableObject {
                 lastSuccessfulSyncAt = completedAt
                 UserDefaults.standard.set(completedAt.timeIntervalSince1970,
                                           forKey: Self.lastSuccessfulSyncKey)
+                ScriptableIntegration.shared.synchronized(at: completedAt, source: source, report: report)
                 clearIncompleteSync()
                 dlog("sync", "OK run=\(runID) inserted=\(report.inserted) events=\(report.eventsSynced) cursor=\(report.nextCursor)")
                 status = "Sync complete."

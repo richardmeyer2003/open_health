@@ -22,7 +22,10 @@ private struct ActivityProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<ActivityEntry>) -> Void) {
-        completion(Timeline(entries: [currentEntry()], policy: .never))
+        let entry = currentEntry()
+        let policy: TimelineReloadPolicy = entry.activity == nil
+            ? .after(Date().addingTimeInterval(15 * 60)) : .never
+        completion(Timeline(entries: [entry], policy: policy))
     }
 
     private func currentEntry() -> ActivityEntry {
@@ -69,13 +72,22 @@ private struct ActivityWidgetView: View {
             .minimumScaleFactor(0.75)
 
             GeometryReader { geometry in
-                MovementRidge(profile: entry.activity?.movement ?? [],
-                              height: geometry.size.height, color: chartColor)
-                    .widgetAccentable()
+                if let activity = entry.activity {
+                    MovementRidge(profile: activity.movement,
+                                  height: geometry.size.height, color: chartColor)
+                        .widgetAccentable()
+                } else {
+                    Text(ActivityWidgetStore.sharingAvailable
+                         ? "Open the app to update activity."
+                         : "Data sharing unavailable. Check Technical reports in Open Oura.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                }
             }
         }
         .privacySensitive()
-        .widgetURL(entry.activity?.reportURL)
+        .widgetURL(entry.activity?.reportURL ?? URL(string: "openoura://activity"))
         .containerBackground(for: .widget) {
             if colorScheme == .dark { Color(red: 0.10, green: 0.14, blue: 0.22) }
             else { Color(red: 0.92, green: 0.95, blue: 1.00) }

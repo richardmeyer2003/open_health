@@ -610,6 +610,12 @@ private struct TechnicalReportsView: View {
                     .disabled(checkDisabled)
                 }
                 .buttonStyle(.plain).foregroundStyle(Obs.ink)
+                section("Activity widget", copy: ActivityWidgetStore.diagnosticReport) {
+                    Text(ActivityWidgetStore.diagnosticReport)
+                        .font(.caption.monospaced()).foregroundStyle(Obs.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 section("Ring clock", copy: clockReport) {
                     Text(clockReport ?? "No summary rendered yet.")
                         .font(.caption.monospaced()).foregroundStyle(clockReport == nil ? Obs.muted : Obs.ink2)
@@ -874,6 +880,7 @@ struct RootView: View {
         .onAppear {
             // A cached summary makes launch immediate; this forced load replaces it
             // with SQLite + model output without blanking the existing Today card.
+            SummaryCache.refreshWidget()
             requestAutomaticSync()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataDidBecomeAvailableNotification)) { _ in
@@ -881,6 +888,7 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                SummaryCache.refreshWidget()
                 requestAutomaticSync()
             } else if phase == .background {
                 WorkCoordinator.shared.invalidateAnalysis()
@@ -912,7 +920,6 @@ struct RootView: View {
     /// after the database transaction has completed, so newly accumulated movement
     /// cannot leave yesterday's activity sessions cached on screen.
     private func refreshAfterSync(_ report: SyncReport) {
-        guard report.inserted > 0 else { return }
         load(force: true, clearCurrent: false)
     }
 
@@ -964,7 +971,7 @@ struct RootView: View {
         let canPublish = generation == loadGeneration && !run.isCancelled && WorkCoordinator.shared.available
         if canPublish && result.error == nil {
             s = result.summary
-            SummaryCache.save(result.summary)
+            SummaryCache.save(result.summary, syncedAt: ring.lastSuccessfulSyncAt)
             HealthExport.shared.push(result.summary)
         }
         if generation == loadGeneration {
@@ -1030,7 +1037,7 @@ struct RootView: View {
                 if !run.isCancelled, WorkCoordinator.shared.available {
                     if full.error == nil {
                         s = full
-                        SummaryCache.save(full)
+                        SummaryCache.save(full, syncedAt: ring.lastSuccessfulSyncAt)
                         HealthExport.shared.push(full)
                     } else if s == nil { s = full }
                     modelProgress.report(generation, full.error == nil ? nil : "Couldn’t refresh data.")

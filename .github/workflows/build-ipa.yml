@@ -3,6 +3,8 @@ name: Build Open Health IPA
 
 on:
   workflow_dispatch:
+  push:
+    branches: [codex/scriptable-integration]
   
 permissions:
   contents: write
@@ -34,6 +36,15 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      - name: Validate Scriptable exports on simulator
+        working-directory: apps/ios/OuraApp
+        run: |
+          SIMULATOR=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(v["udid"] for k,vs in d["devices"].items() if "iOS-26" in k for v in vs if "iPhone" in v["name"]))')
+          xcodebuild test -project OuraApp.xcodeproj -scheme OuraApp \
+            -destination "platform=iOS Simulator,id=$SIMULATOR" \
+            -only-testing:OuraAppTests/ScriptableTests \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Package unsigned IPA
         run: |

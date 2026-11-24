@@ -43,6 +43,7 @@ xcrun -sdk iphonesimulator swiftc -O \
     "$GEN/oura_core.swift" "$APPDIR/Theme.swift" "$APPDIR/OuraApp.swift" \
     "$APPDIR/Models.swift" "$APPDIR/Core.swift" "$APPDIR/Components.swift" "$APPDIR/Reports.swift" \
     "$APPDIR/ActivityWidgetSupport.swift" \
+    "$APPDIR/ScriptableIntegration.swift" "$APPDIR/ScriptableSnapshot.swift" \
     "$APPDIR/BLETransport.swift" "$APPDIR/RingSync.swift" "$APPDIR/ProfileSettings.swift" \
     "$APPDIR/EventStore.swift" "$APPDIR/ModelCache.swift" "$APPDIR/ModelProgress.swift" \
     "$APPDIR/SleepStaging.swift" "$APPDIR/IbiCorrection.swift" "$APPDIR/CvaModel.swift" "$APPDIR/ActivityModel.swift" "$APPDIR/IllnessModel.swift" \

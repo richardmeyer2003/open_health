@@ -24,22 +24,29 @@ enum SummaryCache {
         var summary: Summary
         var workouts: [WorkoutSession]
         var illness: IllnessResult?
+        var modelErrors: [String]?
     }
     static func load() -> Summary? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         if let cached = try? JSONDecoder().decode(CachedSummary.self, from: data), cached.summary.error == nil {
             var result = cached.summary
             result.workouts = cached.workouts; result.illness = cached.illness
+            result.modelErrors = cached.modelErrors ?? []
             return result
         }
         guard let legacy = try? JSONDecoder().decode(Summary.self, from: data), legacy.error == nil else { return nil }
         return legacy
     }
 
-    static func save(_ summary: Summary) {
+    static var writtenAt: Date? {
+        (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate]) as? Date
+    }
+
+    static func save(_ summary: Summary, syncedAt: Date? = nil) {
         guard summary.error == nil else { return }
         queue.async {
-            guard let data = try? JSONEncoder().encode(CachedSummary(summary: summary, workouts: summary.workouts, illness: summary.illness)) else { return }
+            defer { ScriptableIntegration.shared.summaryReady(summary, generatedAt: Date(), syncedAt: syncedAt) }
+            guard let data = try? JSONEncoder().encode(CachedSummary(summary: summary, workouts: summary.workouts, illness: summary.illness, modelErrors: summary.modelErrors)) else { return }
             try? data.write(to: url, options: .atomic)
             ActivityWidgetStore.publish(activitySnapshot(from: summary))
         }
@@ -57,10 +64,19 @@ enum SummaryCache {
         )
     }
 
+    /// Seed the widget from existing data after an upgrade and retry a missed reload.
+    static func refreshWidget() {
+        queue.async {
+            let snapshot = load().flatMap { activitySnapshot(from: $0) }
+            ActivityWidgetStore.publish(snapshot, forceReload: true)
+        }
+    }
+
     static func clear() {
         queue.sync {
             try? FileManager.default.removeItem(at: url)
             ActivityWidgetStore.publish(nil)
+            ScriptableIntegration.shared.resetSync()
         }
     }
 }

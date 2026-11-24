@@ -26,17 +26,41 @@ enum ActivityWidgetStore {
         return try? JSONDecoder().decode(ActivityWidgetSnapshot.self, from: data)
     }
 
+    static var sharingAvailable: Bool { file != nil }
+
+    static var diagnosticReport: String {
+        let heading = "Requested App Group: \(appGroup)"
+        guard let file else {
+            return heading + "\nShared container unavailable. The installed app needs this App Group in its signing entitlements and provisioning profile."
+        }
+        guard FileManager.default.fileExists(atPath: file.path) else {
+            return heading + "\nShared container available. No activity snapshot has been written yet."
+        }
+        do {
+            let data = try Data(contentsOf: file)
+            let snapshot = try JSONDecoder().decode(ActivityWidgetSnapshot.self, from: data)
+            return heading + "\nShared snapshot readable. Day: \(snapshot.day), movement buckets: \(snapshot.movement.count)."
+        } catch {
+            return heading + "\nSnapshot could not be read: \(error.localizedDescription)"
+        }
+    }
+
     /// Called on the host app's serial summary-cache queue.
-    static func publish(_ snapshot: ActivityWidgetSnapshot?) {
-        guard let file else { return }
+    static func publish(_ snapshot: ActivityWidgetSnapshot?, forceReload: Bool = false) {
+        guard let file else {
+            NSLog("Open Oura Activity widget: shared container unavailable for %@", appGroup)
+            return
+        }
         do {
             if let snapshot {
-                guard load() != snapshot else { return }
-                let data = try JSONEncoder().encode(snapshot)
-                try data.write(to: file, options: .atomic)
+                if load() != snapshot {
+                    let data = try JSONEncoder().encode(snapshot)
+                    try data.write(to: file, options: .atomic)
+                } else if !forceReload { return }
             } else {
-                guard FileManager.default.fileExists(atPath: file.path) else { return }
-                try FileManager.default.removeItem(at: file)
+                if FileManager.default.fileExists(atPath: file.path) {
+                    try FileManager.default.removeItem(at: file)
+                } else if !forceReload { return }
             }
             WidgetCenter.shared.reloadTimelines(ofKind: kind)
         } catch {

@@ -218,10 +218,11 @@ final class DiagStore: NSObject, ObservableObject, @unchecked Sendable {
     func exportAll() -> String {
         flush()
         let clock = ClockReport.text().map { "\n--- ring clock ---\n\($0)\n" } ?? ""
+        let widget = "\n--- Activity widget ---\n\(ActivityWidgetStore.diagnosticReport)\n"
         return queue.sync {
             let current = (try? String(contentsOf: live, encoding: .utf8)) ?? ""
             let retained = loadFolder("crashes") + loadFolder("sessions")
-            return current + clock + "\nRetained reports included: \(retained.count)/\(retained.count)\n"
+            return current + clock + widget + "\nRetained reports included: \(retained.count)/\(retained.count)\n"
                 + retained.map { "\n--- \($0.kind) ---\n\($0.body)" }.joined()
         }
     }

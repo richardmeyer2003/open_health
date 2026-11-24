@@ -1,26 +1,31 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
-/// All authorization, pending-sync state, and writes are serialized on this queue.
+/// Pending-sync state and export writes are serialized on this queue.
 final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
     static let shared = ScriptableIntegration()
+    static let exportFolderName = "Scriptable"
     private let queue = DispatchQueue(label: "md.thomas.openoura.scriptable", qos: .utility)
     private let defaults: UserDefaults
+    private let documentsDirectory: URL
     private let prefix = "scriptable."
     @Published private(set) var enabled: Bool
-    @Published private(set) var folderName: String
     @Published private(set) var lastExportAt: Date?
     @Published private(set) var error: String?
     @Published private(set) var working = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, documentsDirectory: URL = .documentsDirectory) {
         let prefix = "scriptable."
         self.defaults = defaults
+        self.documentsDirectory = documentsDirectory
         enabled = defaults.bool(forKey: prefix + "enabled")
-        folderName = defaults.string(forKey: prefix + "folder-name") ?? "Choose a folder under On My iPhone"
-        let last = defaults.double(forKey: prefix + "last-export-at")
+        let last = defaults.double(forKey: prefix + "documents-last-export-at")
         lastExportAt = last > 0 ? Date(timeIntervalSince1970: last) : nil
-        error = defaults.string(forKey: prefix + "error")
+        error = defaults.string(forKey: prefix + "documents-error")
+
+        // Keep the user's opt-in and sync metadata when retiring the picker.
+        for key in ["folder-bookmark", "folder-name", "last-export-at", "error"] {
+            defaults.removeObject(forKey: prefix + key)
+        }
     }
 
     func setEnabled(_ enabled: Bool) {
@@ -29,33 +34,6 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
             self.defaults.set(enabled, forKey: self.prefix + "enabled")
             if !enabled { self.defaults.removeObject(forKey: self.prefix + "pending-sync") }
         }
-    }
-
-    func chooseFolder(_ url: URL) {
-        working = true
-        queue.async {
-            do {
-                guard url.startAccessingSecurityScopedResource() else {
-                    throw ExportError.message("Folder access was denied. Choose the folder again.")
-                }
-                defer { url.stopAccessingSecurityScopedResource() }
-                let values = try url.resourceValues(forKeys: [.isDirectoryKey, .isUbiquitousItemKey])
-                guard values.isDirectory == true else { throw ExportError.message("Choose a folder.") }
-                guard values.isUbiquitousItem != true else {
-                    throw ExportError.message("Choose a local folder under On My iPhone.")
-                }
-                let bookmark = try url.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
-                self.defaults.set(bookmark, forKey: self.prefix + "folder-bookmark")
-                self.defaults.set(url.lastPathComponent, forKey: self.prefix + "folder-name")
-                self.clearError()
-                DispatchQueue.main.async { self.folderName = url.lastPathComponent; self.working = false }
-            } catch { self.failed(error) }
-        }
-    }
-
-    func folderSelectionFailed(_ error: Error) {
-        guard (error as NSError).code != NSUserCancelledError else { return }
-        queue.async { self.failed(error) }
     }
 
     /// Runs for every successful manual or automatic sync, including zero new events.
@@ -113,19 +91,6 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
         DispatchQueue.main.async { self.working = true }
         do {
             guard summary.error == nil else { throw ExportError.message("Wait for a successful data refresh before exporting.") }
-            guard let bookmark = defaults.data(forKey: prefix + "folder-bookmark") else {
-                throw ExportError.message("Choose an export folder under On My iPhone.")
-            }
-            var stale = false
-            let folder = try URL(resolvingBookmarkData: bookmark, bookmarkDataIsStale: &stale)
-            guard folder.startAccessingSecurityScopedResource() else {
-                throw ExportError.message("Folder access has expired. Choose the folder again.")
-            }
-            defer { folder.stopAccessingSecurityScopedResource() }
-            if stale {
-                let renewed = try folder.bookmarkData(options: .minimalBookmark, includingResourceValuesForKeys: nil, relativeTo: nil)
-                defaults.set(renewed, forKey: prefix + "folder-bookmark")
-            }
             var metadata = defaults.dictionary(forKey: prefix + "sync") ?? [
                 "last_successful_at": NSNull(), "last_successful_source": NSNull(),
                 "events_received": NSNull(), "events_inserted": NSNull()
@@ -139,16 +104,25 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
             }
             let data = try ScriptableSnapshot.data(summary: summary, sync: metadata, generatedAt: generatedAt,
                                                    reason: reason, hourly: HourlyHR.load(days: 2))
-            try Self.replace(data, at: folder.appendingPathComponent(ScriptableSnapshot.filename))
+            try Self.replace(data, at: exportDestination())
             let completedAt = Date()
-            defaults.set(completedAt.timeIntervalSince1970, forKey: prefix + "last-export-at")
+            defaults.set(completedAt.timeIntervalSince1970, forKey: prefix + "documents-last-export-at")
             if reason == "sync" { defaults.removeObject(forKey: prefix + "pending-sync") }
             clearError()
             DispatchQueue.main.async { self.lastExportAt = completedAt; self.working = false }
         } catch { failed(error) }
     }
 
-    /// Coordination protects Files-provider access. Atomic writing preserves the previous file on failure.
+    private func exportDestination() throws -> URL {
+        var folder = documentsDirectory.appendingPathComponent(Self.exportFolderName, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try folder.setResourceValues(values)
+        return folder.appendingPathComponent(ScriptableSnapshot.filename)
+    }
+
+    /// Coordinate with Files and Scriptable readers, and preserve the previous export on write failure.
     static func replace(_ data: Data, at destination: URL) throws {
         var coordinationError: NSError?
         var writeError: Error?
@@ -161,13 +135,13 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
     }
 
     private func clearError() {
-        defaults.removeObject(forKey: prefix + "error")
+        defaults.removeObject(forKey: prefix + "documents-error")
         DispatchQueue.main.async { self.error = nil }
     }
 
     private func failed(_ error: Error) {
         let message = error.localizedDescription
-        defaults.set(message, forKey: prefix + "error")
+        defaults.set(message, forKey: prefix + "documents-error")
         DispatchQueue.main.async { self.error = message; self.working = false }
         dlog("scriptable", "export failed: \(message)")
     }
@@ -180,16 +154,11 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
 
 struct ScriptableIntegrationSection: View {
     @ObservedObject private var integration = ScriptableIntegration.shared
-    @State private var selectingFolder = false
 
     var body: some View {
         Section {
             Toggle("Enable Scriptable Integration", isOn: Binding(get: { integration.enabled }, set: integration.setEnabled))
             if integration.enabled {
-                Button { selectingFolder = true } label: {
-                    LabeledContent("Export folder", value: integration.folderName)
-                }
-                .disabled(integration.working)
                 Button(action: integration.exportNow) {
                     HStack {
                         Text("Export Now")
@@ -209,12 +178,8 @@ struct ScriptableIntegrationSection: View {
         } header: {
             Text("Scriptable Integration")
         } footer: {
-            Text("Saves open-oura-widget.json after a successful ring sync. Choose the local folder bookmarked in Scriptable. This file includes your health data.")
-        }
-        .fileImporter(isPresented: $selectingFolder, allowedContentTypes: [.folder]) { result in
-            switch result {
-            case .success(let url): integration.chooseFolder(url)
-            case .failure(let error): integration.folderSelectionFailed(error)
+            if integration.enabled {
+                Text("After each successful sync, saves health data to Files → On My iPhone → Open Oura → \(ScriptableIntegration.exportFolderName) → \(ScriptableSnapshot.filename).")
             }
         }
     }

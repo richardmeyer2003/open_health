@@ -135,19 +135,65 @@ final class ScriptableTests: XCTestCase {
     }
 
     @MainActor
+    func testZeroEventSyncExportsToDocumentsAfterUpgradingFromFolderPicker() async throws {
+        let suite = "ScriptableTests." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let documents = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: documents)
+        }
+        defaults.set(true, forKey: "scriptable.enabled")
+        defaults.set(Data([1]), forKey: "scriptable.folder-bookmark")
+        defaults.set(now.timeIntervalSince1970, forKey: "scriptable.last-export-at")
+        let integration = ScriptableIntegration(defaults: defaults, documentsDirectory: documents)
+        XCTAssertTrue(integration.enabled)
+        XCTAssertNil(integration.lastExportAt)
+        XCTAssertNil(defaults.data(forKey: "scriptable.folder-bookmark"))
+
+        let exported = expectation(description: "A zero-event sync creates the local export")
+        let subscription = integration.$lastExportAt.compactMap { $0 }.sink { _ in exported.fulfill() }
+        defer { subscription.cancel() }
+        integration.synchronized(at: now, source: "resume", report: SyncReport(serial: "test", eventsSynced: 0, inserted: 0, nextCursor: 0))
+        integration.summaryReady(Summary(), generatedAt: now, syncedAt: now)
+        await fulfillment(of: [exported], timeout: 5)
+
+        let folder = documents.appendingPathComponent("Scriptable", isDirectory: true)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: documents.path), ["Scriptable"])
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["open-oura-widget.json"])
+        XCTAssertEqual(try folder.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        let data = try Data(contentsOf: folder.appendingPathComponent(ScriptableSnapshot.filename))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let sync = try XCTUnwrap(root["sync"] as? [String: Any])
+        XCTAssertEqual(root["schema_version"] as? Int, 1)
+        XCTAssertEqual(root["is_example"] as? Bool, false)
+        XCTAssertEqual(sync["last_successful_source"] as? String, "automatic")
+        XCTAssertEqual(sync["events_inserted"] as? Int, 0)
+        XCTAssertNil(integration.error)
+        XCTAssertNil(defaults.object(forKey: "scriptable.pending-sync"))
+    }
+
+    @MainActor
     func testZeroEventSyncAttemptsExportAndRetainsPendingStateAfterFailure() async throws {
         let suite = "ScriptableTests." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let obstructedDocuments = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let original = Data("existing file".utf8)
+        try original.write(to: obstructedDocuments)
+        defer {
+            defaults.removePersistentDomain(forName: suite)
+            try? FileManager.default.removeItem(at: obstructedDocuments)
+        }
         defaults.set(true, forKey: "scriptable.enabled")
-        let integration = ScriptableIntegration(defaults: defaults)
-        let failed = expectation(description: "Missing folder is reported after a zero-event sync")
+        let integration = ScriptableIntegration(defaults: defaults, documentsDirectory: obstructedDocuments)
+        let failed = expectation(description: "A blocked export path is reported after a zero-event sync")
         let subscription = integration.$error.compactMap { $0 }.sink { _ in failed.fulfill() }
         defer { subscription.cancel() }
         integration.synchronized(at: now, source: "resume", report: SyncReport(serial: "test", eventsSynced: 0, inserted: 0, nextCursor: 0))
         integration.summaryReady(Summary(), generatedAt: now, syncedAt: now)
         await fulfillment(of: [failed], timeout: 5)
         XCTAssertNil(integration.lastExportAt)
+        XCTAssertEqual(try Data(contentsOf: obstructedDocuments), original)
         XCTAssertEqual(defaults.double(forKey: "scriptable.pending-sync"), now.timeIntervalSince1970)
         XCTAssertEqual(defaults.dictionary(forKey: "scriptable.sync")?["last_successful_source"] as? String, "automatic")
     }

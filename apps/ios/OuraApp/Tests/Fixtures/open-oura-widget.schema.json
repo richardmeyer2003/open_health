@@ -1132,6 +1132,42 @@
           ],
           "additionalProperties": false,
           "description": "Only export a usable debt result according to the existing calculation's validity flag."
+        },
+        "stage_percentages": {
+          "type": "object",
+          "properties": {
+            "deep": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "light": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "rem": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "awake": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "deep",
+            "light",
+            "rem",
+            "awake"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1149,7 +1185,8 @@
         "score",
         "clinical_metrics",
         "autonomic_by_stage",
-        "debt"
+        "debt",
+        "stage_percentages"
       ],
       "additionalProperties": false
     },

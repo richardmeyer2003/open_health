@@ -93,6 +93,11 @@ final class ScriptableIntegration: ObservableObject, @unchecked Sendable {
                 self.failed(ExportError.message("Sync the ring before exporting."))
                 return
             }
+            let lastSync = self.defaults.double(forKey: "ring.last-successful-sync-at")
+            if lastSync > (SummaryCache.writtenAt?.timeIntervalSince1970 ?? 0) {
+                self.failed(ExportError.message("Wait for the post-sync data refresh to finish, then export again."))
+                return
+            }
             self.export(summary, generatedAt: SummaryCache.writtenAt, reason: "manual")
         }
     }

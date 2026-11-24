@@ -44,8 +44,9 @@ enum SummaryCache {
 
     static func save(_ summary: Summary, syncedAt: Date? = nil) {
         guard summary.error == nil else { return }
+        let generatedAt = Date()
         queue.async {
-            defer { ScriptableIntegration.shared.summaryReady(summary, generatedAt: Date(), syncedAt: syncedAt) }
+            defer { ScriptableIntegration.shared.summaryReady(summary, generatedAt: generatedAt, syncedAt: syncedAt) }
             guard let data = try? JSONEncoder().encode(CachedSummary(summary: summary, workouts: summary.workouts, illness: summary.illness, modelErrors: summary.modelErrors)) else { return }
             try? data.write(to: url, options: .atomic)
             ActivityWidgetStore.publish(activitySnapshot(from: summary))

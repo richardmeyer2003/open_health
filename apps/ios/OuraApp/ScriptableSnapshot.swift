@@ -91,18 +91,14 @@ enum ScriptableSnapshot {
             guard let night = s.nights.first(where: { pick($0)?.isFinite == true }) else { return NSNull() }
             return ["date": value(s.wakeYmd(night)), field: number(pick(night))]
         }
-        var hrv = latest({ $0.hrv_ms }, field: "rmssd_ms")
-        if var row = hrv as? [String: Any] {
-            row["baseline_ms"] = number(s.vitals.hrv.baseline)
-            row["delta_percent"] = number(s.vitals.hrv.delta_pct)
-            hrv = row
-        }
-        var resting = latest({ $0.rhr }, field: "bpm")
-        if var row = resting as? [String: Any] {
-            row["baseline_bpm"] = number(s.vitals.rhr.baseline)
-            row["delta_percent"] = number(s.vitals.rhr.delta_pct)
-            resting = row
-        }
+        let hrv: Any = s.vitals.hrv.latest.map { v -> [String: Any] in
+            ["date": value(VitalKind.hrv.series(in: s).last?.date), "rmssd_ms": number(v),
+             "baseline_ms": number(s.vitals.hrv.baseline), "delta_percent": number(s.vitals.hrv.delta_pct)]
+        } ?? NSNull() as Any
+        let resting: Any = s.vitals.rhr.latest.map { v -> [String: Any] in
+            ["date": value(VitalKind.heartRate.series(in: s).last?.date), "bpm": number(v),
+             "baseline_bpm": number(s.vitals.rhr.baseline), "delta_percent": number(s.vitals.rhr.delta_pct)]
+        } ?? NSNull() as Any
         let oxygen = latest({ $0.spo2_mean }, field: "percent")
         if oxygen is NSNull { unavailable["vitals.oxygen_saturation"] = "no_calculated_value" }
         let vitals: [String: Any] = [
@@ -148,6 +144,8 @@ enum ScriptableSnapshot {
                      "in_bed_seconds": number(n.durationS), "asleep_seconds": number(m.map { $0.asleepMin * 60 }),
                      "efficiency_percent": number(m.flatMap { n.durationS > 0 ? $0.asleepMin * 60 / n.durationS * 100 : nil }),
                      "stages": stageData, "staging_source": value(n.staging_source),
+                     "stage_percentages": ["deep": number(n.deep_pct), "light": number(n.light_pct),
+                                           "rem": number(n.rem_pct), "awake": number(n.wake_pct)],
                      "staging_coverage_percent": number(n.staging_coverage_pct), "staging_complete": n.stagingComplete,
                      "signals": ["sample_limit_per_signal": 96,
                                  "heart_rate": signal(n.series_t?.hr, unit: "bpm"),
